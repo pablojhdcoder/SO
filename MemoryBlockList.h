@@ -1,6 +1,11 @@
-//
-// Created by pablojhd on 4/11/24.
-//
+/*
+* TITLE: Sistemas Operativos
+ * SUBTITLE: Práctica 2
+ * AUTHOR 1: Pablo Herrero Diaz LOGIN 1: pablo.herrero.diaz
+ * AUTHOR 2: Tiago Da Costa Teixeira Veloso E Volta LOGIN 2: tiago.velosoevolta
+ * GROUP: 2.3
+ * DATE: 22 / 11 / 24
+ */
 
 #ifndef MEMORYBLOCKLIST_H
 #define MEMORYBLOCKLIST_H
@@ -34,10 +39,11 @@ typedef struct {
     int fileDescriptor;           // Descriptor del archivo (para archivos mapeados)
 }tItemB;
 
-typedef struct tNode* tPosB;
+typedef struct tNodeB* tPosB;
 typedef tPosB MemoryBlockList;
+MemoryBlockList memoryList;  // Lista de bloques de memoria asignados
 
-struct tNode {
+struct tNodeB {
     tItemB data;
     tPosB next;
 };
@@ -45,12 +51,13 @@ struct tNode {
 
 void createEmptyListB(MemoryBlockList *L);
 bool isEmptyListB(MemoryBlockList *L);
+bool createNode(tPosB *p);
 tPosB lastPosB(MemoryBlockList L);
 bool insertMemoryBlockB(MemoryBlockList *L, void *address, size_t size, AllocationType type, key_t Key, const char *fileName, int fileDescriptor);
 //Mirar lo que puso gpt con la anterior implementación
-void removeMemoryBlock(size_t n);
-void printMemoryBlockList();
-void cleanMemoryBlockList();
+void removeMemoryBlock(MemoryBlockList *L, size_t size);
+void printMemoryBlockList(MemoryBlockList L);
+void cleanMemoryBlockList(MemoryBlockList *L);
 
 
 

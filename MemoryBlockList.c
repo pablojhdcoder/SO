@@ -1,6 +1,11 @@
-//
-// Created by pablojhd on 4/11/24.
-//
+/*
+* TITLE: Sistemas Operativos
+ * SUBTITLE: Práctica 2
+ * AUTHOR 1: Pablo Herrero Diaz LOGIN 1: pablo.herrero.diaz
+ * AUTHOR 2: Tiago Da Costa Teixeira Veloso E Volta LOGIN 2: tiago.velosoevolta
+ * GROUP: 2.3
+ * DATE: 22 / 11 / 24
+ */
 
 #include "MemoryBlockList.h"
 
@@ -16,6 +21,7 @@ const char *CategoryToString(AllocationType type){
         case MAPPED_FILE:
             return "mapped";
         default:
+            fprintf(stderr, "Unknown allocation type\n");
             return "undefined";
     }
 }
@@ -28,10 +34,9 @@ bool isEmptyListB(MemoryBlockList *L) {
 }
 
 bool createNode(tPosB *p) {
-    *p = malloc(sizeof(struct tNode));
+    *p = malloc(sizeof(struct tNodeB));
     return *p != BNULL;
 }
-
 
 tPosB lastPosB(MemoryBlockList L) {
     tPosB p;
@@ -74,42 +79,43 @@ bool insertMemoryBlockB(MemoryBlockList *L, void *address, size_t size, Allocati
 
 void removeMemoryBlock(MemoryBlockList *L, size_t size) {
     if (!isEmptyListB(L)) {
-        tPosB q;
-        for (tPosB p = *L; p != BNULL; p=p->next) {
-            if (p->data.size == size) {
-                if (p==*L) {
-                    *L = (*L)->next;
-                }else if (p->next == BNULL) {
-                    for(p = *L; p->next != p; p = p->next);
-                    p->next = BNULL;
-                }else {
-                    q = p->next;
-                    p->data = q->data;
-                    p->next = q->next;
-                    p = q;
-                }
-                // Liberamos la memoria usada por el nodo
-                if (p->data.fileName != BNULL) {
-                    free(p->data.fileName);  // Liberar la memoria de fileName si fue asignada
-                }
-                free(p);
-                return;
-            }
-        }
-        printf("No block with the given size found.\n");
-    }else
-        printf("The memory block list is empty.\n");
+        tPosB current = *L;
+        tPosB previous = BNULL;
 
+        while (current != BNULL && current->data.size != size) {
+            previous = current;
+            current = current->next;
+        }
+
+        if (current == BNULL) {
+            printf("No block with the given size found.\n");
+            return;
+        }
+
+        if (previous == BNULL) { // El bloque a eliminar está en el inicio de la lista
+            *L = (*L)->next;
+        } else {
+            previous->next = current->next;
+        }
+
+        if (current->data.fileName != BNULL) {
+            free(current->data.fileName); // Liberar la memoria de fileName si fue asignada
+        }
+        free(current);
+    } else {
+        printf("The memory block list is empty.\n");
+    }
 }
+
 void printMemoryBlockList(MemoryBlockList L) {
     if(!isEmptyListB(&L)) {
         printf("******Lista de bloques asignados malloc para el proceso %d",getpid());
         for (tPosB p = L; p!=BNULL; p=p->next) {
             // Ya se guarda la hora formateada previamente en la estructura, así que ahora solo la imprimimos.
-            printf("Address: %p", p->data.address);
-            printf("Size: %zu", p->data.size);
-            printf("Allocation Time: %s", p->data.allocationTime);  // Mostrar la hora formateada guardada
-            printf("Type: %s", CategoryToString(p->data.type));
+            printf("Address: %p\n", p->data.address);
+            printf("Size: %zu\n", p->data.size);
+            printf("Allocation Time: %s\n", p->data.allocationTime);  // Mostrar la hora formateada guardada
+            printf("Type: %s\n", CategoryToString(p->data.type));
             if (p->data.type == SHARED_MEMORY) {
                 printf("Shared Memory Key: %d", p->data.smKey);
             } else if (p->data.type == MAPPED_FILE) {

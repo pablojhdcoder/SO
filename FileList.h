@@ -1,10 +1,10 @@
 /*
 * TITLE: Sistemas Operativos
- * SUBTITLE: Práctica 1
+ * SUBTITLE: Práctica 2
  * AUTHOR 1: Pablo Herrero Diaz LOGIN 1: pablo.herrero.diaz
  * AUTHOR 2: Tiago Da Costa Teixeira Veloso E Volta LOGIN 2: tiago.velosoevolta
  * GROUP: 2.3
- * DATE: 25 / 10 / 24
+ * DATE: 22 / 11 / 24
  */
 
 #ifndef FILELIST_H

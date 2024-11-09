@@ -1,10 +1,10 @@
 /*
- * TITLE: Sistemas Operativos
- * SUBTITLE: Practica 1
+* TITLE: Sistemas Operativos
+ * SUBTITLE: Práctica 2
  * AUTHOR 1: Pablo Herrero Diaz LOGIN 1: pablo.herrero.diaz
  * AUTHOR 2: Tiago Da Costa Teixeira Veloso E Volta LOGIN 2: tiago.velosoevolta
  * GROUP: 2.3
- * DATE: 25 / 10 / 24
+ * DATE: 22 / 11 / 24
  */
 
 #ifndef FUNCTIONS_H
@@ -24,11 +24,15 @@
 #include <pwd.h>        // Para obtener nombre de usuario
 #include <grp.h>        // Para obtener nombre del grupo
 #include <dirent.h> //Para obtener información del contenido de un directorio
+#include <sys/mman.h>  // Para mmap()
+#include <sys/shm.h>  // Para shmget(), shmat(), shmdt(), shmctl()
+#include <sys/wait.h>  // Para waitpid()
 
 #include "CommandList.h"
 #include "HistoryList.h"
 #include "FileList.h"
 #include "Commands.h"
+#include "MemoryBlockList.h"
 
 void printPrompt();
 void InitializateShellLists (CommandListC *c, HistoryList *h, OpenFileList *f);

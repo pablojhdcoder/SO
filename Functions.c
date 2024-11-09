@@ -1,10 +1,10 @@
 /*
- * TITLE: Sistemas Operativos
- * SUBTITLE: Practica 0
+* TITLE: Sistemas Operativos
+ * SUBTITLE: Práctica 2
  * AUTHOR 1: Pablo Herrero Diaz LOGIN 1: pablo.herrero.diaz
  * AUTHOR 2: Tiago Da Costa Teixeira Veloso E Volta LOGIN 2: tiago.velosoevolta
  * GROUP: 2.3
- * DATE: 27 / 09 / 24
+ * DATE: 22 / 11 / 24
  */
 
 #include "Functions.h"
@@ -87,7 +87,9 @@ void InsertPredefinedCommands(CommandListC *commandList) {
         "historic", "open", "close", "dup", "infosys",
         "makefile", "makedir","cwd", "listfile", "listdir",
         "reclist", "revlist", "erase", "delrec",
-        "help", "quit", "exit", "bye"
+        "allocate","deallocate", "memfill","memdump",
+        "memory", "readfile", "writefile", "read",
+        "write", "recurse","help", "quit", "exit", "bye"
     };
     const char *Descriptions[] = {
         " [-n|-l] Muestra los nombres y/o logins de los autores",
@@ -109,7 +111,7 @@ void InsertPredefinedCommands(CommandListC *commandList) {
         " df Duplica el descriptor de fichero df y anade una nueva entrada a la lista ficheros abiertos",
         " Muestra informacion de la maquina donde corre el shell",
         " [name] Crea un fichero de nombre name",
-        " [name]	Crea un directorio de nombre name",
+        " [name] Crea un directorio de nombre name",
         "Muestra el directorio actual del shell",
         " [-long][-link][-acc] name1 name2 ..	lista ficheros; \n"
         "\t-long: listado largo \n"
@@ -132,7 +134,31 @@ void InsertPredefinedCommands(CommandListC *commandList) {
         "\t-link: si es enlace simbolico, el path contenido ",
         " [name1 name2 ..] Borra ficheros o directorios vacios",
         " [name1 name2 ..] Borra ficheros o directorios no vacios recursivamente",
-        " [cmd|-all]	Muestra ayuda sobre los comandos \n"
+        " [-malloc|-shared|-createshared|-mmap]... Asigna un bloque de memoria \n"
+        "\t-malloc tam: asigna un bloque malloc de tamano tam \n"
+        "\tcreateshared cl tam: asigna (creando) el bloque de memoria compartida de clave cl y tamano tam \n"
+        "\t-shared cl: asigna el bloque de memoria compartida (ya existente) de clave cl"
+        "\t-mmap fich perm: mapea el fichero fich, perm son los permisos",
+        " [-malloc|-shared|-delkey|-mmap|addr]..	Desasigna un bloque de memoria \n"
+        "\t-malloc tam: desasigna el bloque malloc de tamano tam \n"
+        "\t-shared cl: desasigna (desmapea) el bloque de memoria compartida de clave cl \n"
+        "\t-delkey cl: elimina del sistema (sin desmapear) la clave de memoria cl \n"
+        "\t-mmap fich: desmapea el fichero mapeado fich \n"
+        "\taddr: desasigna el bloque de memoria en la direccion addr",
+        " addr cont byte Llena la memoria a partir de addr con byte",
+        " addr cont Vuelca en pantallas los contenidos (cont bytes) de la posicion de memoria addr",
+        " [-blocks|-funcs|-vars|-all|-pmap] ..	Muestra muestra detalles de la memoria del proceso \n"
+        "\t-blocks: los bloques de memoria asignados \n"
+        "\t-funcs: las direcciones de las funciones \n"
+        "\t-vars: las direcciones de las variables \n"
+        "\t:-all: todo \n"
+        "\t-pmap: muestra la salida del comando pmap(o similar)",
+        " fiche addr cont 	Lee cont bytes desde fich a la direccion addr",
+        " [-o] fiche addr cont 	Escribe cont bytes desde la direccion addr a fich (-o sobreescribe)",
+        " df addr cont	Transfiere cont bytes del fichero descrito por df a la dirección addr",
+        " df addr cont	Transfiere cont bytes desde la dirección addr al fichero descrito por df",
+        " [n]	Invoca a la funcion recursiva n veces",
+        " [cmd|-all] Muestra ayuda sobre los comandos \n"
         "\t-cmd: info sobre el comando cmd \n"
         "\t-all: lista todos los comandos con su información ",
         " Termina la ejecucion del shell",
@@ -218,12 +244,42 @@ void processInput(bool *finished,tItemH *str,char *pieces[], CommandListC *comma
             command_delrec(pieces);
             break;
         case 19:
-            command_help(pieces,commandList);
+            command_allocate(pieces);
             break;
         case 20:
+            command_deallocate();
+            break;
         case 21:
+            command_memfill();
+            break;
         case 22:
-            command_exit(finished,fileList,history,commandList);
+            command_memdump();
+            break;
+        case 23:
+            command_memory();
+            break;
+        case 24:
+            command_readfile();
+            break;
+        case 25:
+            command_writefile();
+            break;
+        case 26:
+            command_read();
+            break;
+        case 27:
+            command_write();
+            break;
+        case 28:
+            command_recurse();
+            break;
+        case 29:
+            command_help(pieces,commandList);
+            break;
+        case 30:
+        case 31:
+        case 32:
+        command_exit(finished,fileList,history,commandList);
             break;
         default:
             perror("Comando no válido, introduce \"help\" para ver los disponibles");
