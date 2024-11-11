@@ -178,7 +178,7 @@ static int getCommandId(tItemH *str, char *pieces[], CommandListC *commandList, 
     return -1;                                      //Si el comando no es válido, retorna -1
 }
 //Procesa el comando introducido //Se puede hacer privada??
-void processInput(bool *finished,tItemH *str,char *pieces[], CommandListC *commandList, HistoryList *history,OpenFileList *fileList, MemoryBlockList *memory_block_list){
+void processInput(bool *finished,tItemH *str,char *pieces[], CommandListC *commandList, HistoryList *history,OpenFileList *fileList, MemoryBlockList *memoryBlockList){
     switch (getCommandId(str,pieces,commandList,history)) {
         case 0:
             command_authors(pieces);
@@ -196,7 +196,7 @@ void processInput(bool *finished,tItemH *str,char *pieces[], CommandListC *comma
             command_date(pieces);
             break;
         case 5:
-            command_historic(pieces,finished,commandList,history,fileList);
+            command_historic(pieces,finished,commandList,history,fileList,memoryBlockList);
             break;
         case 6:
             command_open(pieces,fileList);
@@ -236,7 +236,7 @@ void processInput(bool *finished,tItemH *str,char *pieces[], CommandListC *comma
             command_delrec(pieces);
             break;
         case 19:
-            command_allocate(pieces, memory_block_list);
+            command_allocate(pieces, memoryBlockList);
             break;
         case 20:
             command_deallocate();
@@ -271,7 +271,7 @@ void processInput(bool *finished,tItemH *str,char *pieces[], CommandListC *comma
         case 30:
         case 31:
         case 32:
-        command_exit(finished,fileList,history,commandList);
+        command_exit(finished,fileList,history,commandList, memoryBlockList);
             break;
         default:
             perror("Comando no válido, introduce \"help\" para ver los disponibles");

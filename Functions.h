@@ -23,8 +23,9 @@
 #include "CommandList.h"
 #include "HistoryList.h"
 #include "FileList.h"
-#include "Commands.h"
 #include "MemoryBlockList.h"
+#include "Commands.h"
+
 
 void printPrompt();
 void InitializateShellLists (CommandListC *c, HistoryList *h, OpenFileList *f, MemoryBlockList *b);

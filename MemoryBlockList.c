@@ -2,6 +2,7 @@
 
 #include <unistd.h>
 
+
 //Función útil para los comandos, hacer la de StringToCategory
 const char *CategoryToString(AllocationType type){
     switch (type) {
@@ -45,7 +46,7 @@ void getFormattedTime(char *buffer, size_t bufferSize) {
 }
 
 //Ojo strdup en filename
-bool insertMemoryBlockB(MemoryBlockList *L, void *address, size_t size, AllocationType type, key_t Key, const char *fileName, int fileDescriptor, bool allocatedByCommand) {
+bool insertMemoryBlockB(MemoryBlockList *L, void *address, size_t size, AllocationType type, key_t Key, const char *fileName, int fileDescriptor) {
     tPosB p,q;
     if(!createNode(&p)) {
         return false;
@@ -57,7 +58,6 @@ bool insertMemoryBlockB(MemoryBlockList *L, void *address, size_t size, Allocati
     p->data.smKey = (type == SHARED_MEMORY) ? Key : -1;
     p->data.fileName = (type == MAPPED_FILE && fileName != BNULL) ? strdup(fileName) : BNULL;     //strdup asigna dinámicamente suficiente memoria para almacenar una copia de la cadena dada,Copia la cadena en la nueva memoria asignada. Devuelve un puntero a la nueva cadena duplicada, cuando se borre el elemento acordarse de hacer free(fileName)
     p->data.fileDescriptor = (type == MAPPED_FILE) ? fileDescriptor : -1;
-    p->data.allocatedByCommand = allocatedByCommand;
     p->next = BNULL;
 
     if (*L == BNULL) {

@@ -8,6 +8,7 @@
 #include <time.h>
 #include <sys/types.h>
 
+
 #define BNULL NULL
 #define LENGTH_MAX_BLOCK 30
 
@@ -28,12 +29,11 @@ typedef struct {
     key_t smKey;                 // Clave de memoria, usado para memoria compartida
     char *fileName;               // Nombre del archivo (para archivos mapeados)
     int fileDescriptor;           // Descriptor del archivo (para archivos mapeados)
-    bool allocatedByCommand;      //Indica si el bloque fue asignado por command_allocate. Importante para garantizar que solo los bloques alocados por el comando se guardan en la lista
 }tItemB;
 
 typedef struct tNodeB* tPosB;
 typedef tPosB MemoryBlockList;
-MemoryBlockList memoryList;  // Lista de bloques de memoria asignados
+MemoryBlockList memoryBlockList;  // Lista de bloques de memoria asignados // Usa extern para evitar definiciones múltiples
 
 struct tNodeB {
     tItemB data;
@@ -45,7 +45,7 @@ void createEmptyListB(MemoryBlockList *L);
 bool isEmptyListB(MemoryBlockList *L);
 bool createNode(tPosB *p);
 tPosB lastPosB(MemoryBlockList L);
-bool insertMemoryBlockB(MemoryBlockList *L, void *address, size_t size, AllocationType type, key_t Key, const char *fileName, int fileDescriptor, bool allocatedByCommand);
+bool insertMemoryBlockB(MemoryBlockList *L, void *address, size_t size, AllocationType type, key_t Key, const char *fileName, int fileDescriptor);
 //Mirar lo que puso gpt con la anterior implementación
 void removeMemoryBlock(MemoryBlockList *L, size_t size);
 void printMemoryBlockList(MemoryBlockList L);

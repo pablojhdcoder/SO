@@ -1,5 +1,9 @@
 #include "Commands.h"
 
+int ext_var1, ext_var2, ext_var3;
+int ext_init_var1 = 10, ext_init_var2 = 20, ext_init_var3 = 30;  // Valores de ejemplo
+
+
 //Imprime el nombre y/o los logins de los autores
 void command_authors(char * pieces[]) {
     const char * names[] = {"Pablo Herrero","Tiago Volta"};
@@ -70,18 +74,18 @@ void command_date(char *pieces[]) {
 }
 
 //Función auxiliar para repetir un comando guardado en el historial
-static void repeatCommand(tPosH p,bool *finished, CommandListC *commandList, HistoryList *history, OpenFileList *openFileList){
+static void repeatCommand(tPosH p,bool *finished, CommandListC *commandList, HistoryList *history, OpenFileList *openFileList, MemoryBlockList *memoryBlockList) {
     char *trozos[LENGTH_MAX_PHRASE];
     tItemH cadena;                                                          //Cadena que almacena el comando a repetir
     tItemH *comando = getItemH(p, history);                                 //Obtiene el comando a repetir
     printf("Ejecutando historic (%d): %s\n",p,*comando);
     strcpy(cadena,*comando);                                                //Copia el comando a cadena
     SplitString(*comando,trozos);                                           //Separa el comando en trozos
-    processInput(finished,&cadena,trozos,commandList,history,openFileList); //Procesa el comando
+    processInput(finished,&cadena,trozos,commandList,history,openFileList, memoryBlockList); //Procesa el comando
 }
 
 //Mustra el historial de comandos introducidos, o repite un comando ya introducido o imprimer los últimos n comandos
-void command_historic (char *pieces[],bool *finished,CommandListC *commandList, HistoryList *history, OpenFileList *openFileList) {
+void command_historic (char *pieces[],bool *finished,CommandListC *commandList, HistoryList *history, OpenFileList *openFileList, MemoryBlockList *memoryBlockList) {
     char *NoValidCharacter;
 
     //Si se proporciona un argumento numérico
@@ -91,7 +95,7 @@ void command_historic (char *pieces[],bool *finished,CommandListC *commandList, 
 
         if(*NoValidCharacter == '\0') {                                     //Si todo el argumento es un número válido, entonces el puntero NoValidCharacter apuntará al \0, strtol convirtió la cadena exitosamente
             if (0 <= number && number <= lastH(*history)) {
-                repeatCommand(number,finished,commandList,history,openFileList);
+                repeatCommand(number,finished,commandList,history,openFileList, memoryBlockList);
             }else if (number < 0) {
                 number = -number;               //Cambiar el signo
                 printLastNH(history,number);    //Imprime los últimos n comandos
@@ -103,7 +107,7 @@ void command_historic (char *pieces[],bool *finished,CommandListC *commandList, 
             fprintf(stderr,"Parte de la cadena no es válida: %s\n", NoValidCharacter);
             printf("Parte numérica leída: %d\n", number);   //Se coge la parte que se ha leído exitosamente
             if (0 <= number && number <= lastH(*history)) {
-                repeatCommand(number,finished,commandList,history,openFileList);
+                repeatCommand(number,finished,commandList,history,openFileList, memoryBlockList);
             }else if (number < 0) {
                 number = -number;                  //Cambiar el signo
                 printLastNH(history,number);       //Imprime los últimos n comandos
@@ -242,12 +246,13 @@ void command_help(char * pieces[], CommandListC *commandList) {
 }
 
 //Comando que limpia todas las listas, cierra los archivos y finaliza el programa
-void command_exit(bool *finished,OpenFileList *openFileList, HistoryList *history, CommandListC *commandList) {
+void command_exit(bool *finished,OpenFileList *openFileList, HistoryList *history, CommandListC *commandList, MemoryBlockList *memoryBlockList) {
 
     // Limpiamos las listas utilizadas en el programa
     CleanCommandListC(commandList);     //Limpia la lista de comandos
     CleanListH(history);                //Limpia el historial de comandos
     CleanListF(openFileList);           //Limpia la lista de archivos abiertos y cierra los archivos abiertos
+    cleanMemoryBlockList(memoryBlockList);  //Limpia la lista de bloques de memoria
 
     // Establece una bandera para indicar que la shell debe terminar
     *finished = true;
@@ -823,56 +828,6 @@ void *cadtop(char *cadena) {
     return (void *)direccion;
 }
 
-//La función recorrerá cada nodo de la lista, verificará el tipo de cada bloque y mostrará solo aquellos que sean del tipo SHARED_MEMORY
-void ImprimirListaShared(MemoryBlockList *memoryList) {
-    // Verificar si la lista está vacía
-    if (isEmptyListB(memoryList)) {
-        printf("****** No hay bloques de memoria compartida asignados para el proceso %d ******\n", getpid());
-        return;
-    }
-
-    printf("****** Lista de bloques asignados (shared) para el proceso %d ******\n", getpid());
-    bool hasSharedMemory = false;  // Bandera para verificar si hay bloques de memoria compartida
-
-    for (tPosB p = *memoryList; p != BNULL; p = p->next) {
-        // Filtrar y mostrar solo los bloques de memoria compartida
-        if (p->data.type == SHARED_MEMORY) {
-            hasSharedMemory = true;  // Se encontró al menos un bloque de memoria compartida
-
-            printf("Dirección: %p\n", p->data.address);
-            printf("Tamaño: %zu bytes\n", p->data.size);
-            printf("Hora de asignación: %s\n", p->data.allocationTime);
-            printf("Clave de memoria compartida: %d\n", p->data.smKey);
-            printf("------------------------------\n");
-        }
-    }
-
-    // Mensaje si no se encontraron bloques de memoria compartida
-    if (!hasSharedMemory) {
-        printf("No hay bloques de memoria compartida en la lista.\n");
-    }
-}
-
-//Esta función recorrerá MemoryBlockList e imprimirá los bloques de memoria que han sido mapeados a archivos (MAPPED_FILE)
-void ImprimirListaMmap(MemoryBlockList *memoryList) {
-    if (isEmptyListB(memoryList)) {
-        printf("******Lista de bloques mapeados para el proceso %d\n", getpid());
-        return;
-    }
-
-    printf("******Lista de bloques mapeados para el proceso %d\n", getpid());
-    for (tPosB p = *memoryList; p != BNULL; p = p->next) {
-        if (p->data.type == MAPPED_FILE) {
-            printf("Address: %p\n", p->data.address);
-            printf("Size: %zu bytes\n", p->data.size);
-            printf("Allocation Time: %s\n", p->data.allocationTime);
-            printf("File Name: %s\n", p->data.fileName ? p->data.fileName : "(null)");
-            printf("File Descriptor: %d\n", p->data.fileDescriptor);
-            printf("\n");
-        }
-    }
-}
-
 //función recursiva que muestra la dirección de su parámetro
 void Recursiva (int n)
 {
@@ -928,7 +883,7 @@ void do_AllocateCreateshared (char *pieces[])
     void *p;
 
     if (pieces[0]==NULL || pieces[1]==NULL) {
-        ImprimirListaShared(&memoryList);
+        printMemoryBlockList(memoryBlockList);
         return;
     }
 
@@ -938,10 +893,17 @@ void do_AllocateCreateshared (char *pieces[])
         printf ("No se asignan bloques de 0 bytes\n");
         return;
     }
-    if ((p=ObtenerMemoriaShmget(cl,tam))!=NULL)
-        printf ("Asignados %lu bytes en %p\n",(unsigned long) tam, p);
-    else
-        printf ("Imposible asignar memoria compartida clave %lu:%s\n",(unsigned long) cl,strerror(errno));
+    // Obtener la memoria compartida
+    if ((p = ObtenerMemoriaShmget(cl, tam)) != NULL) {
+        printf("Asignados %lu bytes en %p\n", (unsigned long)tam, p);
+
+        // Insertar en la lista de bloques de memoria
+        if (!insertMemoryBlockB(&memoryBlockList, p, tam, SHARED_MEMORY, cl, NULL, -1)) {
+            fprintf(stderr, "Error al insertar el bloque de memoria compartida en la lista\n");
+        }
+    } else {
+        printf("Imposible asignar memoria compartida clave %lu:%s\n", (unsigned long)cl, strerror(errno));
+    }
 }
 
 //función intenta asignar un segmento de memoria compartida existente
@@ -952,16 +914,23 @@ void do_AllocateShared (char *pieces[])
    void *p;
 
    if (pieces[0]==NULL) {
-		ImprimirListaShared(&memoryList);
+		printMemoryBlockList(memoryBlockList);
 		return;
    }
 
-   cl=(key_t)  strtoul(pieces[0],NULL,10);
+   cl=(key_t)  strtoul(pieces[0],NULL,10);tam=(size_t) strtoul(pieces[1],NULL,10);
 
-   if ((p=ObtenerMemoriaShmget(cl,0))!=NULL)
-		printf ("Asignada memoria compartida de clave %lu en %p\n",(unsigned long) cl, p);
-   else
-		printf ("Imposible asignar memoria compartida clave %lu:%s\n",(unsigned long) cl,strerror(errno));
+    // Intentar obtener la memoria compartida
+    if ((p = ObtenerMemoriaShmget(cl, 0)) != NULL) {
+        printf("Asignada memoria compartida de clave %lu en %p\n", (unsigned long)cl, p);
+
+        // Insertar en la lista de bloques de memoria
+        if (!insertMemoryBlockB(&memoryBlockList, p, tam, SHARED_MEMORY, cl, NULL, -1)) {
+            fprintf(stderr, "Error al insertar el bloque de memoria compartida en la lista\n");
+        }
+    } else {
+        printf("Imposible asignar memoria compartida clave %lu:%s\n", (unsigned long)cl, strerror(errno));
+    }
 }
 
 //función mapea un archivo en la memoria del proceso usando mmap
@@ -983,31 +952,41 @@ void * MapearFichero (char * fichero, int protection)\
 }
 
 //función llama a MapearFichero para mapear un archivo
-void do_AllocateMmap(char *arg[])
+void do_AllocateMmap(char *pieces[])
 {
      char *perm;
      void *p;
      int protection=0;
+    size_t tam;
 
-     if (arg[0]==NULL)
-            {ImprimirListaMmap(&memoryList); return;}
-     if ((perm=arg[1])!=NULL && strlen(perm)<4) {
+     if (pieces[0]==NULL)
+            {printMemoryBlockList(memoryBlockList); return;}
+     if ((perm=pieces[1])!=NULL && strlen(perm)<4) {
             if (strchr(perm,'r')!=NULL) protection|=PROT_READ;
             if (strchr(perm,'w')!=NULL) protection|=PROT_WRITE;
             if (strchr(perm,'x')!=NULL) protection|=PROT_EXEC;
      }
-     if ((p=MapearFichero(arg[0],protection))==NULL)
-             perror ("Imposible mapear fichero");
-     else
-             printf ("fichero %s mapeado en %p\n", arg[0], p);
+    // Mapear el archivo
+    if ((p = MapearFichero(pieces[0], protection)) == NULL) {
+        perror("Imposible mapear fichero");
+    } else {
+        printf("Fichero %s mapeado en %p\n", pieces[0], p);
+
+        tam=(size_t) strtoul(pieces[1],NULL,10);
+
+        // Insertar en la lista de bloques de memoria
+        if (!insertMemoryBlockB(&memoryBlockList, p, tam, MAPPED_FILE, -1, pieces[0], -1)) {
+            fprintf(stderr, "Error al insertar el bloque de memoria mapeada en la lista\n");
+        }
+    }
 }
 
 //función elimina un segmento de memoria compartida según su clave
-void do_DeallocateDelkey (char *args[])
+void do_DeallocateDelkey (char *pieces[])
 {
    key_t clave;
    int id;
-   char *key=args[0];
+   char *key=pieces[0];
 
    if (key==NULL || (clave=(key_t) strtoul(key,NULL,10))==IPC_PRIVATE){
         printf ("      delkey necesita clave_valida\n");
@@ -1043,23 +1022,23 @@ ssize_t LeerFichero (char *f, void *p, size_t cont)
 }
 
 //función lee datos de un archivo y los coloca en una dirección de memoria específica
-void Cmd_ReadFile (char *ar[])
+void Cmd_ReadFile (char *pieces[])
 {
    void *p;
    size_t cont=-1;  /*si no pasamos tamano se lee entero */
    ssize_t n;
-   if (ar[0]==NULL || ar[1]==NULL){
+   if (pieces[0]==NULL || pieces[1]==NULL){
 	printf ("faltan parametros\n");
 	return;
    }
-   p=cadtop(ar[1]);  /*convertimos de cadena a puntero*/
-   if (ar[2]!=NULL)
-	cont=(size_t) atoll(ar[2]);
+   p=cadtop(pieces[1]);  /*convertimos de cadena a puntero*/
+   if (pieces[2]!=NULL)
+	cont=(size_t) atoll(pieces[2]);
 
-   if ((n=LeerFichero(ar[0],p,cont))==-1)
+   if ((n=LeerFichero(pieces[0],p,cont))==-1)
 	perror ("Imposible leer fichero");
    else
-	printf ("leidos %lld bytes de %s en %p\n",(long long) n,ar[0],p);
+	printf ("leidos %lld bytes de %s en %p\n",(long long) n,pieces[0],p);
 }
 
 //Ejecuta un comando equivalente a pmap para ver el mapa de memoria del proceso actual
@@ -1094,7 +1073,7 @@ void Do_pmap (void) /*sin argumentos*/
 }
 
 //Es un gestor de asignación de memoria que recibe argumentos y decide qué tipo de asignación realizar
-void command_allocate(char *pieces[]) {
+void command_allocate(char *pieces[], MemoryBlockList *memoryBlockList) {
     if (pieces[1] == NULL) {
         fprintf(stderr, "Error: Faltan argumentos para el comando allocate\n");
         return;
@@ -1111,7 +1090,8 @@ void command_allocate(char *pieces[]) {
             perror("Error al asignar memoria con malloc");
             return;
         }
-        if (!insertMemoryBlockB(&memoryList, address, n, MALLOC_MEMORY, -1, NULL, -1, true)) {
+
+        if (!insertMemoryBlockB(memoryBlockList, address, n, MALLOC_MEMORY, -1, NULL, -1)) {  //inserta en la lista
             fprintf(stderr, "Error al insertar el bloque malloc en la lista de memoria\n");
             free(address);
         } else {
@@ -1167,6 +1147,7 @@ void command_memory(char *pieces[]) {
     }
 
     if (strcmp(pieces[1], "-funcs") == 0) {
+        // Imprimir direcciones de funciones del programa y de la biblioteca
         printf("Dirección de 3 funciones del programa:\n");
         printf("command_memory: %p\n", (void *)command_memory);
         printf("command_allocate: %p\n", (void *)command_allocate);
@@ -1177,8 +1158,7 @@ void command_memory(char *pieces[]) {
         printf("free: %p\n", (void *)free);
 
     } else if (strcmp(pieces[1], "-vars") == 0) {
-        extern int ext_var1, ext_var2, ext_var3;
-        extern int ext_init_var1, ext_init_var2, ext_init_var3;
+        // Variables externas y estáticas
         static int static_var1, static_var2, static_var3;
         static int static_init_var1 = 1, static_init_var2 = 2, static_init_var3 = 3;
         int auto_var1, auto_var2, auto_var3;
@@ -1209,15 +1189,18 @@ void command_memory(char *pieces[]) {
         printf("auto_var3: %p\n", (void *)&auto_var3);
 
     } else if (strcmp(pieces[1], "-blocks") == 0) {
-        ImprimirListaMmap(&memoryList);
-        ImprimirListaShared(&memoryList);
+        // Imprimir la lista de bloques de memoria
+        printf("****** Lista de bloques asignados para el proceso %d ******\n", getpid());
+        printMemoryBlockList(memoryBlockList);
 
     } else if (strcmp(pieces[1], "-all") == 0) {
+        // Mostrar todo (funciones, variables, bloques)
         command_memory((char *[]){"memory", "-funcs", NULL});
         command_memory((char *[]){"memory", "-vars", NULL});
         command_memory((char *[]){"memory", "-blocks", NULL});
 
     } else if (strcmp(pieces[1], "-pmap") == 0) {
+        // Llamar a la función que muestra el mapa de memoria
         Do_pmap();
 
     } else {
@@ -1241,12 +1224,19 @@ void command_writefile(char *pieces[]) {
         return;
     }
 
-    //Parsear los argumentos
-    filename = pieces[1];
-    addr = (void *)strtoull(pieces[2], NULL, 16); // Convertir addr de cadena hexadecimal a puntero
-    cont = (size_t)strtoull(pieces[3], NULL, 10); // Convertir cont de cadena a número entero
+    // Verificar si el primer argumento es "-o" para sobrescribir
+    if (strcmp(pieces[1], "-o") == 0) {
+        filename = pieces[2];
+        addr = (void *)strtoull(pieces[3], NULL, 16);
+        cont = (size_t)strtoull(pieces[4], NULL, 10);
+        fd = open(filename, O_WRONLY | O_TRUNC | O_CREAT, 0666);  // Sobrescribir el archivo
+    } else {
+        filename = pieces[1];
+        addr = (void *)strtoull(pieces[2], NULL, 16);
+        cont = (size_t)strtoull(pieces[3], NULL, 10);
+        fd = open(filename, O_WRONLY | O_CREAT, 0666);  // No sobrescribir si no se pasa -o
+    }
 
-    fd = open(filename, O_WRONLY | O_CREAT, 0666);  // Abrir el archivo para escritura
     if (fd == -1) {
         perror("Error al abrir el archivo");
         return;
@@ -1275,29 +1265,41 @@ void command_write(char *pieces[]) {
     ssize_t written;
     errno = 0;
 
+    // Verificar que se proporcionen los tres argumentos necesarios
     if (pieces[1] == NULL || pieces[2] == NULL || pieces[3] == NULL) {
         fprintf(stderr, "Error: Faltan argumentos para el comando write\n");
         fprintf(stderr, "Uso: write <file_descriptor> <addr> <cont>\n");
         return;
     }
 
-    // Parsear los argumentos
-    fd = strtol(pieces[1], NULL, 10);  // Convertir el descriptor de archivo de cadena a entero
-    if (errno != 0 || fd <= 0) {   // Verificar errores y que el descriptor sea positivo
-        fprintf(stderr, "Error: Descriptor de fichero inválido\n");
+    // Convertir el descriptor de archivo de cadena a entero
+    fd = strtol(pieces[1], NULL, 10);
+    if (fd <= 0) {   // Verificar si el descriptor de archivo es válido
+        fprintf(stderr, "Error: Descriptor de archivo inválido\n");
         return;
     }
-    addr = (void *)strtoull(pieces[2], NULL, 16);  // Convertir addr de cadena hexadecimal a puntero
-    cont = (size_t)strtoull(pieces[3], NULL, 10);  // Convertir cont de cadena a número entero
 
-    written = write(fd, addr, cont);  // Escribir en el archivo desde la memoria
+    // Convertir addr de cadena hexadecimal a puntero
+    addr = (void *)strtoull(pieces[2], NULL, 16);
+    if (addr == NULL) {
+        fprintf(stderr, "Error: Dirección de memoria no válida\n");
+        return;
+    }
+
+    // Convertir cont de cadena a tamaño entero
+    cont = (size_t)strtoull(pieces[3], NULL, 10);
+
+    // Escribir en el archivo desde la memoria
+    written = write(fd, addr, cont);
     if (written == -1) {
         perror("Error al escribir en el archivo");
         return;
-    }else if ((size_t)written != cont) {
-        fprintf(stderr, "Advertencia: No se pudieron escribir todos los bytes\n");
+    } else if ((size_t)written != cont) {
+        // Advertencia si no se escriben todos los bytes solicitados
+        fprintf(stderr, "Advertencia: No se escribieron todos los bytes solicitados (%zu bytes escritos de %zu solicitados)\n", written, cont);
     }
 
+    // Mensaje de confirmación
     printf("Escribió %zd bytes en el archivo desde la dirección de memoria %p\n", written, addr);
 }
 void command_recurse(){}
