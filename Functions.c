@@ -1,12 +1,3 @@
-/*
-* TITLE: Sistemas Operativos
- * SUBTITLE: Práctica 2
- * AUTHOR 1: Pablo Herrero Diaz LOGIN 1: pablo.herrero.diaz
- * AUTHOR 2: Tiago Da Costa Teixeira Veloso E Volta LOGIN 2: tiago.velosoevolta
- * GROUP: 2.3
- * DATE: 22 / 11 / 24
- */
-
 #include "Functions.h"
 
 #include <errno.h>
@@ -250,25 +241,25 @@ void processInput(bool *finished,tItemH *str,char *pieces[], CommandListC *comma
             command_deallocate();
             break;
         case 21:
-            command_memfill();
+            command_memfill(pieces);
             break;
         case 22:
             command_memdump();
             break;
         case 23:
-            command_memory();
+            command_memory(pieces);
             break;
         case 24:
             command_readfile();
             break;
         case 25:
-            command_writefile();
+            command_writefile(pieces);
             break;
         case 26:
             command_read();
             break;
         case 27:
-            command_write();
+            command_write(pieces);
             break;
         case 28:
             command_recurse();

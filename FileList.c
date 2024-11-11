@@ -1,13 +1,4 @@
-/*
-* TITLE: Sistemas Operativos
- * SUBTITLE: Práctica 2
- * AUTHOR 1: Pablo Herrero Diaz LOGIN 1: pablo.herrero.diaz
- * AUTHOR 2: Tiago Da Costa Teixeira Veloso E Volta LOGIN 2: tiago.velosoevolta
- * GROUP: 2.3
- * DATE: 22 / 11 / 24
- */
 #include "FileList.h"
-
 #include "HistoryList.h"
 
 //Función auxiliar para crear un nuevo nodo

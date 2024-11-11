@@ -1,12 +1,3 @@
-/*
-* TITLE: Sistemas Operativos
- * SUBTITLE: Práctica 2
- * AUTHOR 1: Pablo Herrero Diaz LOGIN 1: pablo.herrero.diaz
- * AUTHOR 2: Tiago Da Costa Teixeira Veloso E Volta LOGIN 2: tiago.velosoevolta
- * GROUP: 2.3
- * DATE: 22 / 11 / 24
- */
-
 #ifndef COMMANDS_H
 #define COMMANDS_H
 
@@ -45,13 +36,13 @@ void command_erase(char *pieces[]);
 
 void command_allocate(char *pieces[]);
 void command_deallocate();
-void command_memfill();
+void command_memfill(char *pieces[]);
 void command_memdump();
-void command_memory();
+void command_memory(char *pieces[]);
 void command_readfile();
-void command_writefile();
+void command_writefile(char *pieces[]);
 void command_read();
-void command_write();
+void command_write(char *pieces[]);
 void command_recurse();
 
 

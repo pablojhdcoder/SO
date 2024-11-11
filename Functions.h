@@ -1,12 +1,3 @@
-/*
-* TITLE: Sistemas Operativos
- * SUBTITLE: Práctica 2
- * AUTHOR 1: Pablo Herrero Diaz LOGIN 1: pablo.herrero.diaz
- * AUTHOR 2: Tiago Da Costa Teixeira Veloso E Volta LOGIN 2: tiago.velosoevolta
- * GROUP: 2.3
- * DATE: 22 / 11 / 24
- */
-
 #ifndef FUNCTIONS_H
 #define FUNCTIONS_H
 
@@ -27,6 +18,7 @@
 #include <sys/mman.h>  // Para mmap()
 #include <sys/shm.h>  // Para shmget(), shmat(), shmdt(), shmctl()
 #include <sys/wait.h>  // Para waitpid()
+#include <ctype.h>   // Para isdigit()
 
 #include "CommandList.h"
 #include "HistoryList.h"
