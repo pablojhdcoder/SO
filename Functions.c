@@ -24,12 +24,13 @@ static void AddStandardFileDescriptorsToOpenFileList(OpenFileList *L) {
     }
 }
 
-void InitializateShellLists (CommandListC *c, HistoryList *h, OpenFileList *f) {
+void InitializateShellLists (CommandListC *c, HistoryList *h, OpenFileList *f, MemoryBlockList *b) {
     createEmptyListC(c);
     InsertPredefinedCommands(c);
     createEmptyListH(h);
     createEmptyListF(f);
     AddStandardFileDescriptorsToOpenFileList(f);
+    createEmptyListB(b);
 }
 
 //Función auxiliar para dividir una cadena en palabras
@@ -49,7 +50,7 @@ static void AddToHistoryList(tItemH *command, HistoryList *lista){
 }
 
 //Función auxiliar para leer la entrada introducida por el usuario
-void readInput(bool *finished, CommandListC *commandList, HistoryList *history, OpenFileList *openFileList) {
+void readInput(bool *finished, CommandListC *commandList, HistoryList *history, OpenFileList *openFileList, MemoryBlockList *memoryBlockList) {
     char input[LENGTH_MAX_INPUT];  //Buffer para almacenar la entrada del usuario
 
     if (fgets(input, LENGTH_MAX_INPUT, stdin) != NULL) {  //Lee la entrada del usuario desde la consola
@@ -65,7 +66,7 @@ void readInput(bool *finished, CommandListC *commandList, HistoryList *history, 
         int NumTrozos = SplitString(input, trozos);  //Divide la cadena en trozos (palabras) y devuelve el número de trozos
 
         if (NumTrozos > 0) {  //Si se han encontrado trozos, procesa la entrada
-            processInput(finished, &cadena, trozos, commandList, history, openFileList);  //Procesa la entrada
+            processInput(finished, &cadena, trozos, commandList, history, openFileList, memoryBlockList);  //Procesa la entrada
         }
     } else {
         perror("Error al leer la entrada");  //Imprime un mensaje de error si la lectura falla
@@ -177,7 +178,7 @@ static int getCommandId(tItemH *str, char *pieces[], CommandListC *commandList, 
     return -1;                                      //Si el comando no es válido, retorna -1
 }
 //Procesa el comando introducido //Se puede hacer privada??
-void processInput(bool *finished,tItemH *str,char *pieces[], CommandListC *commandList, HistoryList *history,OpenFileList *fileList){
+void processInput(bool *finished,tItemH *str,char *pieces[], CommandListC *commandList, HistoryList *history,OpenFileList *fileList, MemoryBlockList *memory_block_list){
     switch (getCommandId(str,pieces,commandList,history)) {
         case 0:
             command_authors(pieces);
@@ -235,7 +236,7 @@ void processInput(bool *finished,tItemH *str,char *pieces[], CommandListC *comma
             command_delrec(pieces);
             break;
         case 19:
-            command_allocate(pieces);
+            command_allocate(pieces, memory_block_list);
             break;
         case 20:
             command_deallocate();
@@ -276,4 +277,3 @@ void processInput(bool *finished,tItemH *str,char *pieces[], CommandListC *comma
             perror("Comando no válido, introduce \"help\" para ver los disponibles");
     }
 }
-
