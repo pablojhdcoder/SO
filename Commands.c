@@ -1070,7 +1070,7 @@ void Do_pmap (void) /*sin argumentos*/
       exit(1);
   }
     waitpid(pid,NULL,0);
-}
+}MemoryBlockList memoryBlockList;
 
 //Es un gestor de asignación de memoria que recibe argumentos y decide qué tipo de asignación realizar
 void command_allocate(char *pieces[], MemoryBlockList *memoryBlockList) {
@@ -1125,17 +1125,19 @@ void command_memfill(char *pieces[]) {
     size_t cont = (size_t) strtoul(pieces[2], NULL, 10);  // Convertir el tamaño de la memoria
     unsigned char ch;
 
-    if (isdigit(pieces[3][0])) {  // Verificar si el tercer argumento es un número o un carácter
-        ch = (unsigned char) strtoul(pieces[3], NULL, 10); // Convertir el número a byte
+    if (pieces[3][0] == '0' && pieces[3][1] == 'x') {    // Verificar si el tercer argumento es un número hexadecimal
+        ch = (unsigned char) strtoul(pieces[3], NULL, 16);   // Convertir el número hexadecimal a byte
+    } else if (isdigit(pieces[3][0])) {  // Verificar si el tercer argumento es un número decimal
+        ch = (unsigned char) strtoul(pieces[3], NULL, 10);   // Convertir el número decimal a byte
     } else if (pieces[3][0] == '\'' && pieces[3][1] != '\0' && pieces[3][2] == '\'' && pieces[3][3] == '\0') {
-        ch = pieces[3][1]; // Convertir el carácter entre comillas
+        ch = pieces[3][1];   // Convertir el carácter entre comillas
     } else {
         fprintf(stderr, "Error: Formato de byte no válido (debe ser un número o un carácter entre comillas)\n");
         return;
     }
 
     LlenarMemoria(addr, cont, ch);  //Llenar la memoria con el carácter 'ch' para los 'cont' bytes
-    printf("Memoria llenada con el carácter '%c' en la dirección %p para %zu bytes\n", ch, addr, cont);
+    printf("Llenando %zu bytes de memoria con el byte %c(0x%x) a partir de la direccion %p\n", cont, ch, ch, addr);
 }
 void command_memdump(){}
 
@@ -1147,50 +1149,34 @@ void command_memory(char *pieces[]) {
     }
 
     if (strcmp(pieces[1], "-funcs") == 0) {
-        // Imprimir direcciones de funciones del programa y de la biblioteca
-        printf("Dirección de 3 funciones del programa:\n");
-        printf("command_memory: %p\n", (void *)command_memory);
-        printf("command_allocate: %p\n", (void *)command_allocate);
-        printf("command_deallocate: %p\n", (void *)command_deallocate);
-        printf("Dirección de 3 funciones de la biblioteca:\n");
-        printf("printf: %p\n", (void *)printf);
-        printf("malloc: %p\n", (void *)malloc);
-        printf("free: %p\n", (void *)free);
+        // Print addresses of program functions
+        printf("Funciones programa      %p,    %p,    %p\n", (void *)command_memory, (void *)command_allocate, (void *)command_deallocate);
+
+        // Print addresses of library functions
+        printf("Funciones libreria      %p,    %p,    %p\n", (void *)printf, (void *)malloc, (void *)free);
 
     } else if (strcmp(pieces[1], "-vars") == 0) {
-        // Variables externas y estáticas
+        // Local variables
+        int local_var1, local_var2, local_var3;
+        printf("Variables locales       %p,    %p,    %p\n", (void *)&local_var1, (void *)&local_var2, (void *)&local_var3);
+
+        // Global variables
+        printf("Variables globales      %p,    %p,    %p\n", (void *)&ext_var1, (void *)&ext_var2, (void *)&ext_var3);
+
+        // Non-initialized global variables
+        printf("Var (N.I.)globales      %p,    %p,    %p\n", (void *)&ext_init_var1, (void *)&ext_init_var2, (void *)&ext_init_var3);
+
+        // Static variables
         static int static_var1, static_var2, static_var3;
-        static int static_init_var1 = 1, static_init_var2 = 2, static_init_var3 = 3;
-        int auto_var1, auto_var2, auto_var3;
+        printf("Variables staticas      %p,    %p,    %p\n", (void *)&static_var1, (void *)&static_var2, (void *)&static_var3);
 
-        printf("Dirección de 3 variables externas:\n");
-        printf("ext_var1: %p\n", (void *)&ext_var1);
-        printf("ext_var2: %p\n", (void *)&ext_var2);
-        printf("ext_var3: %p\n", (void *)&ext_var3);
+        // Non-initialized static variables
+        static int static_init_var1, static_init_var2, static_init_var3;
+        printf("Var (N.I.)staticas      %p,    %p,    %p\n", (void *)&static_init_var1, (void *)&static_init_var2, (void *)&static_init_var3);
 
-        printf("Dirección de 3 variables externas inicializadas:\n");
-        printf("ext_init_var1: %p\n", (void *)&ext_init_var1);
-        printf("ext_init_var2: %p\n", (void *)&ext_init_var2);
-        printf("ext_init_var3: %p\n", (void *)&ext_init_var3);
-
-        printf("Dirección de 3 variables estáticas:\n");
-        printf("static_var1: %p\n", (void *)&static_var1);
-        printf("static_var2: %p\n", (void *)&static_var2);
-        printf("static_var3: %p\n", (void *)&static_var3);
-
-        printf("Dirección de 3 variables estáticas inicializadas:\n");
-        printf("static_init_var1: %p\n", (void *)&static_init_var1);
-        printf("static_init_var2: %p\n", (void *)&static_init_var2);
-        printf("static_init_var3: %p\n", (void *)&static_init_var3);
-
-        printf("Dirección de 3 variables automáticas:\n");
-        printf("auto_var1: %p\n", (void *)&auto_var1);
-        printf("auto_var2: %p\n", (void *)&auto_var2);
-        printf("auto_var3: %p\n", (void *)&auto_var3);
 
     } else if (strcmp(pieces[1], "-blocks") == 0) {
         // Imprimir la lista de bloques de memoria
-        printf("****** Lista de bloques asignados para el proceso %d ******\n", getpid());
         printMemoryBlockList(memoryBlockList);
 
     } else if (strcmp(pieces[1], "-all") == 0) {

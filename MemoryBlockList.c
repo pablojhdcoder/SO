@@ -2,7 +2,6 @@
 
 #include <unistd.h>
 
-
 //Función útil para los comandos, hacer la de StringToCategory
 const char *CategoryToString(AllocationType type){
     switch (type) {
@@ -117,7 +116,7 @@ void printMemoryBlockList(MemoryBlockList L) {
             printf("\n");
         }
     }else
-        printf("******Lista de bloques asignados para el proceso %d",getpid());
+        printf("******Lista de bloques asignados para el proceso %d\n",getpid());
 }
 void cleanMemoryBlockList(MemoryBlockList *L)  {
     tPosB p = BNULL;

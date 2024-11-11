@@ -33,7 +33,7 @@ typedef struct {
 
 typedef struct tNodeB* tPosB;
 typedef tPosB MemoryBlockList;
-MemoryBlockList memoryBlockList;  // Lista de bloques de memoria asignados // Usa extern para evitar definiciones múltiples
+extern MemoryBlockList memoryBlockList;  // Lista de bloques de memoria asignados // Usa extern para evitar definiciones múltiples
 
 struct tNodeB {
     tItemB data;
