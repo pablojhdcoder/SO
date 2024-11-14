@@ -2,6 +2,7 @@
 
 int ext_var1, ext_var2, ext_var3;
 int ext_init_var1 = 10, ext_init_var2 = 20, ext_init_var3 = 30;  // Valores de ejemplo
+MemoryBlockList memoryBlockList;
 
 
 //Imprime el nombre y/o los logins de los autores
@@ -1045,7 +1046,7 @@ void Cmd_ReadFile (char *pieces[])
 void Do_pmap (void) /*sin argumentos*/
  { pid_t pid;       /*hace el pmap (o equivalente) del proceso actual*/
    char elpid[32];
-   char *argv[4]={"pmap",elpid,NULL};
+   char *pieces[4]={"pmap",elpid,NULL};
 
    sprintf (elpid,"%d", (int) getpid());
    if ((pid=fork())==-1){
@@ -1053,24 +1054,24 @@ void Do_pmap (void) /*sin argumentos*/
       return;
       }
    if (pid==0){
-      if (execvp(argv[0],argv)==-1)
+      if (execvp(pieces[0],pieces)==-1)
          perror("cannot execute pmap (linux, solaris)");
 
-      argv[0]="procstat"; argv[1]="vm"; argv[2]=elpid; argv[3]=NULL;
-      if (execvp(argv[0],argv)==-1)/*No hay pmap, probamos procstat FreeBSD */
+      pieces[0]="procstat"; pieces[1]="vm"; pieces[2]=elpid; pieces[3]=NULL;
+      if (execvp(pieces[0],pieces)==-1)/*No hay pmap, probamos procstat FreeBSD */
          perror("cannot execute procstat (FreeBSD)");
 
-      argv[0]="procmap",argv[1]=elpid;argv[2]=NULL;
-            if (execvp(argv[0],argv)==-1)  /*probamos procmap OpenBSD*/
+      pieces[0]="procmap",pieces[1]=elpid;pieces[2]=NULL;
+            if (execvp(pieces[0],pieces)==-1)  /*probamos procmap OpenBSD*/
          perror("cannot execute procmap (OpenBSD)");
 
-      argv[0]="vmmap"; argv[1]="-interleave"; argv[2]=elpid;argv[3]=NULL;
-      if (execvp(argv[0],argv)==-1) /*probamos vmmap Mac-OS*/
+      pieces[0]="vmmap"; pieces[1]="-interleave"; pieces[2]=elpid;pieces[3]=NULL;
+      if (execvp(pieces[0],pieces)==-1) /*probamos vmmap Mac-OS*/
          perror("cannot execute vmmap (Mac-OS)");
       exit(1);
   }
     waitpid(pid,NULL,0);
-}MemoryBlockList memoryBlockList;
+}
 
 //Es un gestor de asignación de memoria que recibe argumentos y decide qué tipo de asignación realizar
 void command_allocate(char *pieces[], MemoryBlockList *memoryBlockList) {
@@ -1095,13 +1096,13 @@ void command_allocate(char *pieces[], MemoryBlockList *memoryBlockList) {
             fprintf(stderr, "Error al insertar el bloque malloc en la lista de memoria\n");
             free(address);
         } else {
-            printf("Asignados %zu bytes usando malloc en la dirección %p\n", n, address);
+            printf("Asignados %zu bytes en %p\n", n, address);
         }
 
     } else if (strcmp(pieces[1], "-mmap") == 0) {
         do_AllocateMmap(pieces + 2);
 
-    } else if (strcmp(pieces[1], "-create") == 0 && strcmp(pieces[2], "shared") == 0) {
+    } else if (strcmp(pieces[1], "-createshared") == 0) {
         do_AllocateCreateshared(pieces + 3);
 
     } else if (strcmp(pieces[1], "-shared") == 0) {
@@ -1115,7 +1116,7 @@ void command_deallocate(){}
 
 //Llena una región de memoria con un byte específico
 void command_memfill(char *pieces[]) {
-    if (pieces[1] == NULL || pieces[2] == NULL || pieces[3] == NULL) {
+    if (pieces[1] == NULL || pieces[2] == NULL) {
         fprintf(stderr, "Error: Faltan argumentos para el comando memfill\n");
         fprintf(stderr, "Uso: memfill <addr> <cont> <ch>\n");
         return;
@@ -1123,20 +1124,22 @@ void command_memfill(char *pieces[]) {
 
     void *addr = cadtop(pieces[1]);  // Convertir la dirección de memoria de cadena a puntero
     size_t cont = (size_t) strtoul(pieces[2], NULL, 10);  // Convertir el tamaño de la memoria
-    unsigned char ch;
+    unsigned char ch = 0x41;  // Valor por defecto 'A' (0x41) si no se pasa un tercer argumento
 
-    if (pieces[3][0] == '0' && pieces[3][1] == 'x') {    // Verificar si el tercer argumento es un número hexadecimal
-        ch = (unsigned char) strtoul(pieces[3], NULL, 16);   // Convertir el número hexadecimal a byte
-    } else if (isdigit(pieces[3][0])) {  // Verificar si el tercer argumento es un número decimal
-        ch = (unsigned char) strtoul(pieces[3], NULL, 10);   // Convertir el número decimal a byte
-    } else if (pieces[3][0] == '\'' && pieces[3][1] != '\0' && pieces[3][2] == '\'' && pieces[3][3] == '\0') {
-        ch = pieces[3][1];   // Convertir el carácter entre comillas
-    } else {
-        fprintf(stderr, "Error: Formato de byte no válido (debe ser un número o un carácter entre comillas)\n");
-        return;
+    if (pieces[3] != NULL) {
+        if (pieces[3][0] == '0' && pieces[3][1] == 'x') {    // Verificar si el tercer argumento es un número hexadecimal
+            ch = (unsigned char) strtoul(pieces[3], NULL, 16);   // Convertir el número hexadecimal a byte
+        } else if (isdigit(pieces[3][0])) {  // Verificar si el tercer argumento es un número decimal
+            ch = (unsigned char) strtoul(pieces[3], NULL, 10);   // Convertir el número decimal a byte
+        } else if (pieces[3][0] == '\'' && pieces[3][1] != '\0' && pieces[3][2] == '\'' && pieces[3][3] == '\0') {
+            ch = pieces[3][1];   // Convertir el carácter entre comillas
+        } else {
+            fprintf(stderr, "Error: Formato de byte no válido (debe ser un número o un carácter entre comillas)\n");
+            return;
+        }
     }
 
-    LlenarMemoria(addr, cont, ch);  //Llenar la memoria con el carácter 'ch' para los 'cont' bytes
+    LlenarMemoria(addr, cont, ch);  // Llenar la memoria con el carácter 'ch' para los 'cont' bytes
     printf("Llenando %zu bytes de memoria con el byte %c(0x%x) a partir de la direccion %p\n", cont, ch, ch, addr);
 }
 void command_memdump(){}
@@ -1149,44 +1152,37 @@ void command_memory(char *pieces[]) {
     }
 
     if (strcmp(pieces[1], "-funcs") == 0) {
-        // Print addresses of program functions
+
         printf("Funciones programa      %p,    %p,    %p\n", (void *)command_memory, (void *)command_allocate, (void *)command_deallocate);
 
-        // Print addresses of library functions
         printf("Funciones libreria      %p,    %p,    %p\n", (void *)printf, (void *)malloc, (void *)free);
 
     } else if (strcmp(pieces[1], "-vars") == 0) {
-        // Local variables
+
         int local_var1, local_var2, local_var3;
         printf("Variables locales       %p,    %p,    %p\n", (void *)&local_var1, (void *)&local_var2, (void *)&local_var3);
 
-        // Global variables
         printf("Variables globales      %p,    %p,    %p\n", (void *)&ext_var1, (void *)&ext_var2, (void *)&ext_var3);
 
-        // Non-initialized global variables
         printf("Var (N.I.)globales      %p,    %p,    %p\n", (void *)&ext_init_var1, (void *)&ext_init_var2, (void *)&ext_init_var3);
 
-        // Static variables
         static int static_var1, static_var2, static_var3;
         printf("Variables staticas      %p,    %p,    %p\n", (void *)&static_var1, (void *)&static_var2, (void *)&static_var3);
 
-        // Non-initialized static variables
         static int static_init_var1, static_init_var2, static_init_var3;
         printf("Var (N.I.)staticas      %p,    %p,    %p\n", (void *)&static_init_var1, (void *)&static_init_var2, (void *)&static_init_var3);
 
 
     } else if (strcmp(pieces[1], "-blocks") == 0) {
-        // Imprimir la lista de bloques de memoria
         printMemoryBlockList(memoryBlockList);
 
     } else if (strcmp(pieces[1], "-all") == 0) {
-        // Mostrar todo (funciones, variables, bloques)
+        //Mostrar todo (funciones, variables, bloques)
         command_memory((char *[]){"memory", "-funcs", NULL});
         command_memory((char *[]){"memory", "-vars", NULL});
         command_memory((char *[]){"memory", "-blocks", NULL});
 
     } else if (strcmp(pieces[1], "-pmap") == 0) {
-        // Llamar a la función que muestra el mapa de memoria
         Do_pmap();
 
     } else {
@@ -1204,31 +1200,42 @@ void command_writefile(char *pieces[]) {
     ssize_t written;
     int fd;
 
+    // Verificar que los argumentos mínimos están presentes
     if (pieces[1] == NULL || pieces[2] == NULL || pieces[3] == NULL) {
         fprintf(stderr, "Error: Faltan argumentos para el comando writefile\n");
-        fprintf(stderr, "Uso: writefile <filename> <addr> <cont>\n");
+        fprintf(stderr, "Uso: writefile [-o] <filename> <addr> <cont>\n");
         return;
     }
 
     // Verificar si el primer argumento es "-o" para sobrescribir
+    int overwrite = 0;
+    int base_index = 1;
     if (strcmp(pieces[1], "-o") == 0) {
-        filename = pieces[2];
-        addr = (void *)strtoull(pieces[3], NULL, 16);
-        cont = (size_t)strtoull(pieces[4], NULL, 10);
-        fd = open(filename, O_WRONLY | O_TRUNC | O_CREAT, 0666);  // Sobrescribir el archivo
-    } else {
-        filename = pieces[1];
-        addr = (void *)strtoull(pieces[2], NULL, 16);
-        cont = (size_t)strtoull(pieces[3], NULL, 10);
-        fd = open(filename, O_WRONLY | O_CREAT, 0666);  // No sobrescribir si no se pasa -o
+        overwrite = 1;
+        base_index++;
     }
 
+    // Asignar los argumentos a las variables correspondientes
+    filename = pieces[base_index];
+    addr = (void *)strtoull(pieces[base_index + 1], NULL, 16);
+    cont = (size_t)strtoull(pieces[base_index + 2], NULL, 10);
+
+    // Verificar si el archivo ya existe y manejar según el modo
+    if (!overwrite && access(filename, F_OK) != -1) {
+        fprintf(stderr, "Imposible escribir fichero: File exists\n");
+        return;
+    }
+
+    // Abrir archivo con los flags correctos según el modo de sobrescritura
+    int flags = O_WRONLY | O_CREAT | (overwrite ? O_TRUNC : O_EXCL);
+    fd = open(filename, flags, 0666);
     if (fd == -1) {
         perror("Error al abrir el archivo");
         return;
     }
 
-    written = write(fd, addr, cont);  // Escribir en el archivo desde la memoria
+    // Intentar escribir en el archivo desde `addr`
+    written = write(fd, addr, cont);
     if (written == -1) {
         perror("Error al escribir en el archivo");
         close(fd);
@@ -1237,31 +1244,32 @@ void command_writefile(char *pieces[]) {
         fprintf(stderr, "Advertencia: No se pudieron escribir todos los bytes\n");
     }
 
-    printf("Escribió %zd bytes en el archivo %s desde la dirección de memoria %p\n", written, filename, addr);
+    printf("Escritos %zd bytes en %s desde la dirección de memoria %p\n", written, filename, addr);
 
     close(fd);
 }
 void command_read(){}
 
-//Lo mismo que writefile pero usa un descriptor de fichero ya abierto.
+
 void command_write(char *pieces[]) {
     int fd;
     void *addr;
     size_t cont;
     ssize_t written;
-    errno = 0;
+    unsigned char ch = 'A';  // Default character to fill memory
 
-    // Verificar que se proporcionen los tres argumentos necesarios
+
+
+    // Verificar que se proporcionen todos los argumentos necesarios
     if (pieces[1] == NULL || pieces[2] == NULL || pieces[3] == NULL) {
         fprintf(stderr, "Error: Faltan argumentos para el comando write\n");
         fprintf(stderr, "Uso: write <file_descriptor> <addr> <cont>\n");
         return;
     }
 
-    // Convertir el descriptor de archivo de cadena a entero
-    fd = strtol(pieces[1], NULL, 10);
+    fd = strtol(pieces[1], NULL, 10);  // Convertir el descriptor de archivo de cadena a entero
     if (fd <= 0) {   // Verificar si el descriptor de archivo es válido
-        fprintf(stderr, "Error: Descriptor de archivo inválido\n");
+        fprintf(stderr, "No ejecutado: No such file or directory\n");
         return;
     }
 
@@ -1275,17 +1283,20 @@ void command_write(char *pieces[]) {
     // Convertir cont de cadena a tamaño entero
     cont = (size_t)strtoull(pieces[3], NULL, 10);
 
-    // Escribir en el archivo desde la memoria
+    // Llenar la memoria con el carácter 'A'
+    memset(addr, ch, cont);
+
+    // Intentar escribir en el archivo desde la memoria
     written = write(fd, addr, cont);
     if (written == -1) {
-        perror("Error al escribir en el archivo");
+        perror("Error al escribir en el fichero");
         return;
     } else if ((size_t)written != cont) {
         // Advertencia si no se escriben todos los bytes solicitados
-        fprintf(stderr, "Advertencia: No se escribieron todos los bytes solicitados (%zu bytes escritos de %zu solicitados)\n", written, cont);
+        fprintf(stderr, "Advertencia: No se escribieron todos los bytes solicitados (%zd bytes escritos de %zu solicitados)\n", written, cont);
     }
 
     // Mensaje de confirmación
-    printf("Escribió %zd bytes en el archivo desde la dirección de memoria %p\n", written, addr);
+    printf("Escritos %zd bytes en el descriptor %d desde la dirección de memoria %p\n", written, fd, addr);
 }
 void command_recurse(){}
