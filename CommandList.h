@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include<stdbool.h>
+#include <stdbool.h>
 
 //Implementar como estática de punteros
 #define LENGTH_MAX_NAME 30     //Longitud máxima del nombre de un comando

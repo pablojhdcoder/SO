@@ -7,9 +7,10 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <unistd.h>
-
-
 #define MAXNAME 35
+#define FNULL NULL
+
+
 #define FNULL NULL  //Definicion de un puntero a NULL
 
 

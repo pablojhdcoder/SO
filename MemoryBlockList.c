@@ -29,6 +29,14 @@ bool createNode(tPosB *p) {
     return *p != BNULL;
 }
 
+tPosB firstB(MemoryBlockList L) {
+    return L;
+}
+
+tPosB next(MemoryBlockList L) {
+    return L->next;
+}
+
 tPosB lastPosB(MemoryBlockList L) {
     tPosB p;
     if (L == BNULL) {
@@ -68,56 +76,66 @@ bool insertMemoryBlockB(MemoryBlockList *L, void *address, size_t size, Allocati
     return true;
 }
 
-void removeMemoryBlock(MemoryBlockList *L, size_t size) {
+void removeMemoryBlock(MemoryBlockList *L, tPosB pos) {
     if (!isEmptyListB(L)) {
-        tPosB current = *L;
-        tPosB previous = BNULL;
-
-        while (current != BNULL && current->data.size != size) {
-            previous = current;
-            current = current->next;
+        tPosB q;
+        if (pos == *L) {
+            *L = (*L) -> next;
+        }else if (pos->next == BNULL) {
+            for(q = *L; q->next != pos; q = q->next);
+            q->next = BNULL;
+        }else {
+            q = pos->next;
+            pos->data = q->data;
+            pos->next = q->next;
+            pos = q;
         }
-
-        if (current == BNULL) {
-            printf("No block with the given size found.\n");
-            return;
-        }
-
-        if (previous == BNULL) { // El bloque a eliminar está en el inicio de la lista
-            *L = (*L)->next;
-        } else {
-            previous->next = current->next;
-        }
-
-        if (current->data.fileName != BNULL) {
-            free(current->data.fileName); // Liberar la memoria de fileName si fue asignada
-        }
-        free(current);
+        free(pos);
     } else {
-        printf("The memory block list is empty.\n");
+        printf("La lista de bloques assignados está vacía\n");
     }
 }
 
-void printMemoryBlockList(MemoryBlockList L) {
-    if(!isEmptyListB(&L)) {
-        printf("******Lista de bloques asignados malloc para el proceso %d",getpid());
-        for (tPosB p = L; p!=BNULL; p=p->next) {
-            // Ya se guarda la hora formateada previamente en la estructura, así que ahora solo la imprimimos.
-            printf("Address: %p\n", p->data.address);
-            printf("Size: %zu\n", p->data.size);
-            printf("Allocation Time: %s\n", p->data.allocationTime);  // Mostrar la hora formateada guardada
-            printf("Type: %s\n", CategoryToString(p->data.type));
-            if (p->data.type == SHARED_MEMORY) {
-                printf("Shared Memory Key: %d", p->data.smKey);
-            } else if (p->data.type == MAPPED_FILE) {
-                printf("File Name: %s", p->data.fileName);
-                printf("File Descriptor: %d", p->data.fileDescriptor);
-            }
-            printf("\n");
-        }
-    }else
-        printf("******Lista de bloques asignados para el proceso %d\n",getpid());
+static void printBlockDetails(tPosB p) {
+    printf("Address: %p\n", p->data.address);
+    printf("Size: %zu\n", p->data.size);
+    printf("Allocation Time: %s\n", p->data.allocationTime);  //     // Ya se guarda la hora formateada previamente en la estructura, así que ahora solo la imprimimos.
+    printf("Type: %s\n", CategoryToString(p->data.type));
+    if (p->data.type == SHARED_MEMORY) {
+        printf("Shared Memory Key: %d", p->data.smKey);
+    } else if (p->data.type == MAPPED_FILE) {
+        printf("File Name: %s", p->data.fileName);
+        printf("File Descriptor: %d", p->data.fileDescriptor);
+    }
+    printf("\n");
 }
+
+
+
+void printAllBlocks(MemoryBlockList L) {
+    if (!isEmptyListB(&L)) {
+        printf("******Lista de bloques asignados para el proceso %d\n", getpid());
+        for (tPosB p = L; p != BNULL; p = p->next) {
+            printBlockDetails(p);
+        }
+    } else {
+        printf("******Lista de bloques asignados para el proceso %d\n", getpid());
+    }
+}
+
+void printEspecificBlocks(MemoryBlockList L, AllocationType type) {
+    if (!isEmptyListB(&L)) {
+        printf("******Lista de bloques asignados con %s para el proceso %d\n", CategoryToString(type), getpid());
+        for (tPosB p = L; p != BNULL; p = p->next) {
+            if (p->data.type == type) {
+                printBlockDetails(p);
+            }
+        }
+    } else {
+        printf("******Lista de bloques asignados %s para el proceso %d\n", CategoryToString(type),getpid());
+    }
+}
+
 void cleanMemoryBlockList(MemoryBlockList *L)  {
     tPosB p = BNULL;
     while (*L != BNULL) {
@@ -129,5 +147,4 @@ void cleanMemoryBlockList(MemoryBlockList *L)  {
         free(p);
     }
 }
-
 

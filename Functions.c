@@ -143,7 +143,7 @@ void InsertPredefinedCommands(CommandListC *commandList) {
         "\t-blocks: los bloques de memoria asignados \n"
         "\t-funcs: las direcciones de las funciones \n"
         "\t-vars: las direcciones de las variables \n"
-        "\t-all: todo \n"
+        "\t:-all: todo \n"
         "\t-pmap: muestra la salida del comando pmap(o similar)",
         " fiche addr cont 	Lee cont bytes desde fich a la direccion addr",
         " [-o] fiche addr cont 	Escribe cont bytes desde la direccion addr a fich (-o sobreescribe)",
@@ -239,13 +239,13 @@ void processInput(bool *finished,tItemH *str,char *pieces[], CommandListC *comma
             command_allocate(pieces, memoryBlockList);
             break;
         case 20:
-            command_deallocate();
+            command_deallocate(pieces,memoryBlockList);
             break;
         case 21:
             command_memfill(pieces);
             break;
         case 22:
-            command_memdump();
+            command_memdump(pieces);
             break;
         case 23:
             command_memory(pieces);

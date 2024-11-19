@@ -820,18 +820,9 @@ void command_delrec(char *pieces[]) {
 
 
 
-//Convierte la cadena a un número hexadecimal
-void *cadtop(char *cadena) {
-    //strtoull de la biblioteca estándar de C para convertir la cadena hexadecimal a un número sin signo de 64 bits
-    //(unsigned long long int).
-    unsigned long long int direccion = strtoull(cadena, NULL, 16); //16 indica la base hexadecimal.
-    //Luego, ese número se interpreta como una dirección de memoria y se convierte en un puntero.
-    return (void *)direccion;
-}
 
 //función recursiva que muestra la dirección de su parámetro
-void Recursiva (int n)
-{
+void Recursiva (int n){
   char automatico[TAMANO];
   static char estatico[TAMANO];
 
@@ -884,7 +875,7 @@ void do_AllocateCreateshared (char *pieces[])
     void *p;
 
     if (pieces[0]==NULL || pieces[1]==NULL) {
-        printMemoryBlockList(memoryBlockList);
+        printEspecificBlocks(memoryBlockList, SHARED_MEMORY);
         return;
     }
 
@@ -915,7 +906,7 @@ void do_AllocateShared (char *pieces[])
    void *p;
 
    if (pieces[0]==NULL) {
-		printMemoryBlockList(memoryBlockList);
+		printEspecificBlocks(memoryBlockList,SHARED_MEMORY);
 		return;
    }
 
@@ -958,10 +949,10 @@ void do_AllocateMmap(char *pieces[])
      char *perm;
      void *p;
      int protection=0;
-    size_t tam;
+     size_t tam;
 
      if (pieces[0]==NULL)
-            {printMemoryBlockList(memoryBlockList); return;}
+            {printEspecificBlocks(memoryBlockList,MAPPED_FILE); return;}
      if ((perm=pieces[1])!=NULL && strlen(perm)<4) {
             if (strchr(perm,'r')!=NULL) protection|=PROT_READ;
             if (strchr(perm,'w')!=NULL) protection|=PROT_WRITE;
@@ -982,96 +973,7 @@ void do_AllocateMmap(char *pieces[])
     }
 }
 
-//función elimina un segmento de memoria compartida según su clave
-void do_DeallocateDelkey (char *pieces[])
-{
-   key_t clave;
-   int id;
-   char *key=pieces[0];
-
-   if (key==NULL || (clave=(key_t) strtoul(key,NULL,10))==IPC_PRIVATE){
-        printf ("      delkey necesita clave_valida\n");
-        return;
-   }
-   if ((id=shmget(clave,0,0666))==-1){
-        perror ("shmget: imposible obtener memoria compartida");
-        return;
-   }
-   if (shmctl(id,IPC_RMID,NULL)==-1)
-        perror ("shmctl: imposible eliminar memoria compartida\n");
-}
-
-//Lee un archivo en una región de memoria específica
-ssize_t LeerFichero (char *f, void *p, size_t cont)
-{
-   struct stat s;
-   ssize_t  n;
-   int df,aux;
-
-   if (stat (f,&s)==-1 || (df=open(f,O_RDONLY))==-1)
-	return -1;
-   if (cont==-1)   /* si pasamos -1 como bytes a leer lo leemos entero*/
-	cont=s.st_size;
-   if ((n=read(df,p,cont))==-1){
-	aux=errno;
-	close(df);
-	errno=aux;
-	return -1;
-   }
-   close (df);
-   return n;
-}
-
-//función lee datos de un archivo y los coloca en una dirección de memoria específica
-void Cmd_ReadFile (char *pieces[])
-{
-   void *p;
-   size_t cont=-1;  /*si no pasamos tamano se lee entero */
-   ssize_t n;
-   if (pieces[0]==NULL || pieces[1]==NULL){
-	printf ("faltan parametros\n");
-	return;
-   }
-   p=cadtop(pieces[1]);  /*convertimos de cadena a puntero*/
-   if (pieces[2]!=NULL)
-	cont=(size_t) atoll(pieces[2]);
-
-   if ((n=LeerFichero(pieces[0],p,cont))==-1)
-	perror ("Imposible leer fichero");
-   else
-	printf ("leidos %lld bytes de %s en %p\n",(long long) n,pieces[0],p);
-}
-
-//Ejecuta un comando equivalente a pmap para ver el mapa de memoria del proceso actual
-void Do_pmap (void) /*sin argumentos*/
- { pid_t pid;       /*hace el pmap (o equivalente) del proceso actual*/
-   char elpid[32];
-   char *pieces[4]={"pmap",elpid,NULL};
-
-   sprintf (elpid,"%d", (int) getpid());
-   if ((pid=fork())==-1){
-      perror ("Imposible crear proceso");
-      return;
-      }
-   if (pid==0){
-      if (execvp(pieces[0],pieces)==-1)
-         perror("cannot execute pmap (linux, solaris)");
-
-      pieces[0]="procstat"; pieces[1]="vm"; pieces[2]=elpid; pieces[3]=NULL;
-      if (execvp(pieces[0],pieces)==-1)/*No hay pmap, probamos procstat FreeBSD */
-         perror("cannot execute procstat (FreeBSD)");
-
-      pieces[0]="procmap",pieces[1]=elpid;pieces[2]=NULL;
-            if (execvp(pieces[0],pieces)==-1)  /*probamos procmap OpenBSD*/
-         perror("cannot execute procmap (OpenBSD)");
-
-      pieces[0]="vmmap"; pieces[1]="-interleave"; pieces[2]=elpid;pieces[3]=NULL;
-      if (execvp(pieces[0],pieces)==-1) /*probamos vmmap Mac-OS*/
-         perror("cannot execute vmmap (Mac-OS)");
-      exit(1);
-  }
-    waitpid(pid,NULL,0);
-}
+//No se imprime lo que tiene que imprimir con allocate y allocate -malloc ademós cuando se hace allocate -malloc 0 reserva 0
 
 //Es un gestor de asignación de memoria que recibe argumentos y decide qué tipo de asignación realizar
 void command_allocate(char *pieces[], MemoryBlockList *memoryBlockList) {
@@ -1096,7 +998,7 @@ void command_allocate(char *pieces[], MemoryBlockList *memoryBlockList) {
             return;
         }
 
-        if (!insertMemoryBlockB(memoryBlockList, address, n, MALLOC_MEMORY, -1, NULL, -1)) {  //inserta en la lista
+        if (!insertMemoryBlockB(memoryBlockList, address, n, MALLOC_MEMORY, -1, BNULL, -1)) {  //inserta en la lista
             fprintf(stderr, "Error al insertar el bloque malloc en la lista de memoria\n");
             free(address);
         } else {
@@ -1111,12 +1013,187 @@ void command_allocate(char *pieces[], MemoryBlockList *memoryBlockList) {
 
     } else if (strcmp(pieces[1], "-shared") == 0) {
         do_AllocateShared(pieces + 2);
-
     } else {
         fprintf(stderr, "Opción desconocida para allocate\n");
     }
 }
-void command_deallocate(){}
+
+static void do_DeallocateMalloc(char *args[], MemoryBlockList *memblocks) {
+    char *NoValidCharacter;
+    if (args[0] != NULL) {
+        size_t n = strtoul(args[0], &NoValidCharacter, 10); // Convertir argumento a número
+        if (*NoValidCharacter == '\0') { // Validar que el número es válido
+            if (n > 0) {
+                tPosB p = firstB(*memblocks);
+                while (p != BNULL) {
+                    if (p->data.type == MALLOC_MEMORY && p->data.size == n) {
+                        break; // Encontramos el bloque
+                    }
+                    p = next(p);
+                }
+                if(p == BNULL) {
+                    printf("No hay bloque de ese tamaño asignado con malloc\n");
+                }else {
+                    free(p->data.address);
+                    removeMemoryBlock(memblocks,p);
+                }
+            }else {
+                printf("No hay bloque de ese tamaño asignado con malloc\n");
+            }
+        } else if (NoValidCharacter == args[0]) { // No se pudo convertir nada
+            printEspecificBlocks(*memblocks,MALLOC_MEMORY);
+        } else {
+            perror("No hay bloque de ese tamaño asignado con malloc\n");
+        }
+    } else {
+        printEspecificBlocks(*memblocks,MALLOC_MEMORY);
+    }
+}
+
+static void do_DeallocateMmap (char *args[],MemoryBlockList *memblocks) {
+    if (args[0] != NULL) {
+        tPosB p = firstB(*memblocks);
+        while (p != BNULL) {
+            if (p->data.type == MAPPED_FILE && strcmp(args[0],p->data.fileName) == 0){
+                break; // Encontramos el bloque
+            }
+            p = next(p);
+        }
+        if(munmap(p->data.address,p->data.size) == -1) {
+            perror("Error al desmapear el archivo");
+        }
+        free(p->data.fileName);
+        removeMemoryBlock(memblocks,p);
+    }else {
+        printEspecificBlocks(*memblocks,MAPPED_FILE);
+    }
+}
+
+static void do_DeallocateShared (char *args[], MemoryBlockList *memblocks) {
+    if (args[0] == NULL) {
+        printEspecificBlocks(*memblocks, SHARED_MEMORY);
+        return;
+    }
+    key_t clave;
+    if ((clave=(key_t) strtoul(args[0],NULL,10))==IPC_PRIVATE){
+        printf ("shared necesita clave_valida\n");
+        return;
+    }
+    //Buscar el bloque correspondiente de la lista
+    tPosB p = firstB(*memblocks);
+    while (p != BNULL) {
+        if (p->data.type == SHARED_MEMORY && p->data.smKey == clave) {
+            break; // Encontramos el bloque
+        }
+        p = next(p);
+    }
+    if (p == BNULL) {
+        printf("No hay bloque de memoria compartida con la clave %d\n", clave);
+        return;
+    }
+
+    // Intentar desvincular la memoria compartida
+    if (shmdt(p->data.address) == -1) {
+        perror("Error al desvincular memoria compartida");
+        return;
+    }
+
+    removeMemoryBlock(memblocks, p);
+}
+
+
+
+//función elimina un segmento de memoria compartida según su clave
+static void do_DeallocateDelkey (char *args[]){
+    key_t clave;
+    int id;
+    char *key=args[0];
+
+    if (key==NULL || (clave=(key_t) strtoul(key,NULL,10))==IPC_PRIVATE){
+        printf ("delkey necesita clave_valida\n");
+        return;
+    }
+    if ((id=shmget(clave,0,0666))==-1){
+        perror ("shmget: imposible obtener memoria compartida");
+        return;
+    }
+    if (shmctl(id,IPC_RMID,NULL)==-1)
+        perror ("shmctl: imposible eliminar memoria compartida\n");
+}
+
+static void do_DeallocateAdd (char *args[], MemoryBlockList *memblocks) {
+    tPosB p = firstB(*memblocks);
+    while (p != BNULL) {
+        if (p->data.address == args[0]) {
+            break; // Encontramos el bloque
+        }
+        p = next(p);
+    }
+    if (p == BNULL) {
+        fprintf(stderr,"Direccion %p no asignada con malloc, shared o mmap",args[0]);
+    }else {
+        switch (p->data.type) {
+            case MALLOC_MEMORY:
+                free(args[0]);
+                break;
+            case SHARED_MEMORY:
+                if (shmdt(p->data.address) == -1)
+                    perror("Error al desvincular memoria compartida");
+                break;
+            case MAPPED_FILE: // Identificador es un nombre de archivo
+                if(munmap(p->data.address,p->data.size) == -1) {
+                    perror("Error al desmapear el archivo");
+                }
+                free(p->data.fileName);
+                break;
+            default: // Identificador es una dirección (void *)
+                perror("Tipo no reconocido");
+                break;
+        }
+        removeMemoryBlock(memblocks,p);
+    }
+}
+
+/*-> deallocate -malloc
+******Lista de bloques asignados malloc para el proceso 22010
+-> deallocate -mmap
+******Lista de bloques asignados mmap para el proceso 22010
+-> deallocate -shared
+******Lista de bloques asignados shared para el proceso 22010
+-> deallocate -delkey
+      delkey necesita clave_valida
+-> deallocate
+******Lista de bloques asignados para el proceso 22010
+*/
+
+
+void command_deallocate(char *pieces[],MemoryBlockList *memblocks) {
+    if (pieces[1] != NULL) {
+        if (strcmp(pieces[1], "-malloc") == 0) {
+            do_DeallocateMalloc(pieces + 2, memblocks);
+        }else if (strcmp(pieces[1], "-mmap") == 0) {
+            do_DeallocateMmap(pieces + 2,memblocks);
+        }else if (strcmp(pieces[1], "-shared") == 0) {
+            do_DeallocateShared(pieces + 2,memblocks);
+        }else if (strcmp(pieces[1], "-delkey") == 0) {
+            do_DeallocateDelkey(pieces + 2);
+        }else {
+            do_DeallocateAdd(pieces + 1, memblocks);
+        }
+    }else
+        printAllBlocks(*memblocks);
+}
+
+
+//Convierte la cadena a un número hexadecimal
+void *cadtop(char *cadena) {
+    //strtoull de la biblioteca estándar de C para convertir la cadena hexadecimal a un número sin signo de 64 bits
+    //(unsigned long long int).
+    unsigned long long int direccion = strtoull(cadena, NULL, 16); //16 indica la base hexadecimal.
+    //Luego, ese número se interpreta como una dirección de memoria y se convierte en un puntero.
+    return (void *)direccion;
+}
+
 
 //Llena una región de memoria con un byte específico
 void command_memfill(char *pieces[]) {
@@ -1146,7 +1223,49 @@ void command_memfill(char *pieces[]) {
     LlenarMemoria(addr, cont, ch);  // Llenar la memoria con el carácter 'ch' para los 'cont' bytes
     printf("Llenando %zu bytes de memoria con el byte %c(0x%x) a partir de la direccion %p\n", cont, ch, ch, addr);
 }
-void command_memdump(){}
+void command_memdump(char *pieces[]) {
+    void *addr = cadtop(pieces[1]);  // Convertir la dirección de memoria de cadena a puntero
+    size_t cont = (size_t) strtoul(pieces[2], NULL, 10);  // Convertir el tamaño de la memoria
+
+    if (pieces[1] != NULL) {
+        size_t i;
+        for(i = 0; i < 16; i++) {
+            printf("%p", pieces[i]);
+        }
+    }
+}
+
+//Ejecuta un comando equivalente a pmap para ver el mapa de memoria del proceso actual
+void Do_pmap (void){    /*sin argumentos*/
+    pid_t pid;       /*hace el pmap (o equivalente) del proceso actual*/
+    char elpid[32];
+    char *pieces[4]={"pmap",elpid,NULL};
+
+    sprintf (elpid,"%d", (int) getpid());
+    if ((pid=fork())==-1){
+        perror ("Imposible crear proceso");
+        return;
+    }
+    if (pid==0){
+        if (execvp(pieces[0],pieces)==-1)
+            perror("cannot execute pmap (linux, solaris)");
+
+        pieces[0]="procstat"; pieces[1]="vm"; pieces[2]=elpid; pieces[3]=NULL;
+        if (execvp(pieces[0],pieces)==-1)/*No hay pmap, probamos procstat FreeBSD */
+            perror("cannot execute procstat (FreeBSD)");
+
+        pieces[0]="procmap",pieces[1]=elpid;pieces[2]=NULL;
+        if (execvp(pieces[0],pieces)==-1)  /*probamos procmap OpenBSD*/
+            perror("cannot execute procmap (OpenBSD)");
+
+        pieces[0]="vmmap"; pieces[1]="-interleave"; pieces[2]=elpid;pieces[3]=NULL;
+        if (execvp(pieces[0],pieces)==-1) /*probamos vmmap Mac-OS*/
+            perror("cannot execute vmmap (Mac-OS)");
+        exit(1);
+    }
+    waitpid(pid,NULL,0);
+ }
+
 
 //Print direcciones
 void command_memory(char *pieces[]) {
@@ -1178,7 +1297,7 @@ void command_memory(char *pieces[]) {
 
 
     } else if (strcmp(pieces[1], "-blocks") == 0) {
-        printMemoryBlockList(memoryBlockList);
+        printAllBlocks(memoryBlockList);
 
     } else if (strcmp(pieces[1], "-all") == 0) {
         //Mostrar todo (funciones, variables, bloques)
@@ -1188,13 +1307,49 @@ void command_memory(char *pieces[]) {
 
     } else if (strcmp(pieces[1], "-pmap") == 0) {
         Do_pmap();
-
     } else {
         fprintf(stderr, "Opción desconocida para memory\n");
     }
 }
 
-void command_readfile(){}
+//Lee un archivo en una región de memoria específica
+ssize_t LeerFichero (char *f, void *p, size_t cont)
+{
+    struct stat s;
+    ssize_t  n;
+    int df,aux;
+
+    if (stat (f,&s)==-1 || (df=open(f,O_RDONLY))==-1)
+        return -1;
+    if (cont==-1)   /* si pasamos -1 como bytes a leer lo leemos entero*/
+        cont=s.st_size;
+    if ((n=read(df,p,cont))==-1){
+        aux=errno;
+        close(df);
+        errno=aux;
+        return -1;
+    }
+    close (df);
+    return n;
+}
+
+void command_readfile(char *ar[]) {
+    void *p;
+    size_t cont=-1;  /*si no pasamos tamano se lee entero */
+    ssize_t n;
+    if (ar[0]==NULL || ar[1]==NULL){
+        printf ("faltan parametros\n");
+        return;
+    }
+    p=cadtop(ar[1]);  /*convertimos de cadena a puntero*/
+    if (ar[2]!=NULL)
+        cont=(size_t) atoll(ar[2]);
+
+    if ((n=LeerFichero(ar[0],p,cont))==-1)
+        perror ("Imposible leer fichero");
+    else
+        printf ("leidos %lld bytes de %s en %p\n",(long long) n,ar[0],p);
+}
 
 //Escribe en un archivo desde una dirección de memoria específica
 void command_writefile(char *pieces[]) {

@@ -8,7 +8,6 @@
 #include <time.h>
 #include <sys/types.h>
 
-
 #define BNULL NULL
 #define LENGTH_MAX_BLOCK 30
 
@@ -33,7 +32,7 @@ typedef struct {
 
 typedef struct tNodeB* tPosB;
 typedef tPosB MemoryBlockList;
-extern MemoryBlockList memoryBlockList;  // Lista de bloques de memoria asignados // Usa extern para evitar definiciones múltiples
+extern MemoryBlockList memoryList;  // Lista de bloques de memoria asignados
 
 struct tNodeB {
     tItemB data;
@@ -44,11 +43,13 @@ struct tNodeB {
 void createEmptyListB(MemoryBlockList *L);
 bool isEmptyListB(MemoryBlockList *L);
 bool createNode(tPosB *p);
+tPosB firstB(MemoryBlockList L);
+tPosB next(MemoryBlockList L);
 tPosB lastPosB(MemoryBlockList L);
 bool insertMemoryBlockB(MemoryBlockList *L, void *address, size_t size, AllocationType type, key_t Key, const char *fileName, int fileDescriptor);
-//Mirar lo que puso gpt con la anterior implementación
-void removeMemoryBlock(MemoryBlockList *L, size_t size);
-void printMemoryBlockList(MemoryBlockList L);
+void removeMemoryBlock(MemoryBlockList *L, tPosB pos);
+void printAllBlocks(MemoryBlockList L);
+void printEspecificBlocks(MemoryBlockList L, AllocationType type);
 void cleanMemoryBlockList(MemoryBlockList *L);
 
 
