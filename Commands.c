@@ -1086,6 +1086,10 @@ void command_allocate(char *pieces[], MemoryBlockList *memoryBlockList) {
             return;
         }
         size_t n = (size_t) strtoul(pieces[2], NULL, 10);
+        if (n == 0) {
+            fprintf(stderr, "No se asignan bloques de 0 bytes\n");
+            return;
+        }
         void *address = malloc(n);
         if (address == NULL) {
             perror("Error al asignar memoria con malloc");
