@@ -1467,8 +1467,20 @@ void command_write(char *pieces[]) {
 
     // Convertir los argumentos
     fd = (int) strtol(pieces[1], NULL, 10);
+    if (fd < 0) {
+        fprintf(stderr, "Error: Descriptor de archivo no válido\n");
+        return;
+    }
     addr = cadtop(pieces[2]);
+    if (addr == NULL) {
+        fprintf(stderr, "Error: Dirección de memoria no válida\n");
+        return;
+    }
     cont = (size_t) strtoul(pieces[3], NULL, 10);
+    if (cont == 0) {
+        fprintf(stderr, "Error: Tamaño de contenido no válido\n");
+        return;
+    }
 
     // Escribir en el archivo desde la dirección de memoria especificada
     written = write(fd, addr, cont);
