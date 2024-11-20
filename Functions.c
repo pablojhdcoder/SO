@@ -236,7 +236,7 @@ void processInput(bool *finished,tItemH *str,char *pieces[], CommandListC *comma
             command_delrec(pieces);
             break;
         case 19:
-            command_allocate(pieces, memoryBlockList);
+            command_allocate(pieces, memoryBlockList, fileList);
             break;
         case 20:
             command_deallocate(pieces,memoryBlockList);

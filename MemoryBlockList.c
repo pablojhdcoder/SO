@@ -20,8 +20,8 @@ const char *CategoryToString(AllocationType type){
 void createEmptyListB(MemoryBlockList *L) {
     *L = BNULL;
 }
-bool isEmptyListB(MemoryBlockList *L) {
-    return *L == BNULL;
+bool isEmptyListB(MemoryBlockList L) {
+    return L == BNULL;
 }
 
 bool createNode(tPosB *p) {
@@ -97,42 +97,40 @@ void removeMemoryBlock(MemoryBlockList *L, tPosB pos) {
 }
 
 static void printBlockDetails(tPosB p) {
-    printf("Address: %p\n", p->data.address);
-    printf("Size: %zu\n", p->data.size);
-    printf("Allocation Time: %s\n", p->data.allocationTime);  //     // Ya se guarda la hora formateada previamente en la estructura, así que ahora solo la imprimimos.
-    printf("Type: %s\n", CategoryToString(p->data.type));
+    printf("%p\t%zu\t%s\t", p->data.address, p->data.size, p->data.allocationTime);
     if (p->data.type == SHARED_MEMORY) {
-        printf("Shared Memory Key: %d", p->data.smKey);
+        printf("shared (key %d)", p->data.smKey);
     } else if (p->data.type == MAPPED_FILE) {
-        printf("File Name: %s", p->data.fileName);
-        printf("File Descriptor: %d", p->data.fileDescriptor);
+        printf("%s (descriptor %d)", p->data.fileName, p->data.fileDescriptor);
+    } else {
+        printf("%s", CategoryToString(p->data.type));
     }
     printf("\n");
 }
 
 
-
 void printAllBlocks(MemoryBlockList L) {
+    printf("******Lista de bloques asignados para el proceso %d\n", getpid());
     if (!isEmptyListB(&L)) {
-        printf("******Lista de bloques asignados para el proceso %d\n", getpid());
         for (tPosB p = L; p != BNULL; p = p->next) {
             printBlockDetails(p);
         }
     } else {
-        printf("******Lista de bloques asignados para el proceso %d\n", getpid());
+        printf("No hay bloques asignados\n");
     }
 }
 
+//esta printeando dos veces
 void printEspecificBlocks(MemoryBlockList L, AllocationType type) {
+    printf("******Lista de bloques asignados con %s para el proceso %d\n", CategoryToString(type), getpid());
     if (!isEmptyListB(&L)) {
-        printf("******Lista de bloques asignados con %s para el proceso %d\n", CategoryToString(type), getpid());
         for (tPosB p = L; p != BNULL; p = p->next) {
             if (p->data.type == type) {
                 printBlockDetails(p);
             }
         }
     } else {
-        printf("******Lista de bloques asignados %s para el proceso %d\n", CategoryToString(type),getpid());
+        printf("No hay bloques asignados con %s\n", CategoryToString(type));
     }
 }
 

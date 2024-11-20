@@ -33,7 +33,7 @@ void command_revlist(char *pieces[]);
 void command_delrec (char *pieces[]);
 void command_erase(char *pieces[]);
 
-void command_allocate(char *pieces[], MemoryBlockList *memoryBlockList);
+void command_allocate(char *pieces[], MemoryBlockList *memoryBlockList, OpenFileList *openFileList);
 void command_deallocate(char *pieces[],MemoryBlockList *memblocks);
 void command_memfill(char *pieces[]);
 void command_memdump();

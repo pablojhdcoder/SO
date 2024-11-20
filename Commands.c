@@ -863,70 +863,86 @@ void * ObtenerMemoriaShmget (key_t clave, size_t tam)
         return (NULL);
     }
     shmctl (id,IPC_STAT,&s); /* si no es crear, necesitamos el tamano, que es s.shm_segsz*/
- /* Guardar en la lista   InsertarNodoShared (&L, p, s.shm_segsz, clave); */
+
     return (p);
 }
 
 //función gestiona la asignación de memoria compartida
-void do_AllocateCreateshared (char *pieces[])
-{
-    key_t cl;
-    size_t tam;
-    void *p;
-
-    if (pieces[0]==NULL || pieces[1]==NULL) {
-        printEspecificBlocks(memoryBlockList, SHARED_MEMORY);
+void do_AllocateCreateshared(char *pieces[], MemoryBlockList *memoryBlockList) {
+    if (pieces[0] == NULL) {
+        // Caso 1: "allocate -createshared"
+        printEspecificBlocks(*memoryBlockList, SHARED_MEMORY);
         return;
     }
 
-    cl=(key_t)  strtoul(pieces[0],NULL,10);
-    tam=(size_t) strtoul(pieces[1],NULL,10);
-    if (tam==0) {
-        printf ("No se asignan bloques de 0 bytes\n");
+    key_t cl = (key_t)strtoul(pieces[0], NULL, 10); // Convertir clave
+
+    if (pieces[1] == NULL) {
+        printEspecificBlocks(*memoryBlockList, SHARED_MEMORY);
         return;
     }
-    // Obtener la memoria compartida
-    if ((p = ObtenerMemoriaShmget(cl, tam)) != NULL) {
+
+    size_t tam = (size_t)strtoul(pieces[1], NULL, 10); // Convertir tamaño
+
+    if (tam == 0) {
+        fprintf(stderr, "No se asignan bloques de 0 bytes\n");
+        return;
+    }
+
+    int df = open(pieces[0], O_RDONLY);
+    if (df == -1) {
+        perror("Error opening file");
+        return;
+    }
+
+    // Caso 3: "allocate -createshared <key> <size>"
+    void *p = ObtenerMemoriaShmget(cl, tam);
+    if (p != NULL) {
         printf("Asignados %lu bytes en %p\n", (unsigned long)tam, p);
 
-        // Insertar en la lista de bloques de memoria
-        if (!insertMemoryBlockB(&memoryBlockList, p, tam, SHARED_MEMORY, cl, NULL, -1)) {
+        if (!insertMemoryBlockB(memoryBlockList, p, tam, SHARED_MEMORY, cl, NULL, df)) {
             fprintf(stderr, "Error al insertar el bloque de memoria compartida en la lista\n");
         }
     } else {
-        printf("Imposible asignar memoria compartida clave %lu:%s\n", (unsigned long)cl, strerror(errno));
+        fprintf(stderr, "Imposible asignar memoria compartida clave %lu: %s\n",
+                (unsigned long)cl, strerror(errno));
     }
 }
 
 //función intenta asignar un segmento de memoria compartida existente
-void do_AllocateShared (char *pieces[])
-{
-   key_t cl;
-   size_t tam;
-   void *p;
+void do_AllocateShared(char *pieces[], MemoryBlockList *memoryBlockList) {
+    key_t cl;
+    void *p;
+    int df = open(pieces[0], O_RDONLY);
+    if (df == -1) {
+        perror("Error opening file");
+        return;
+    }
 
-   if (pieces[0]==NULL) {
-		printEspecificBlocks(memoryBlockList,SHARED_MEMORY);
-		return;
-   }
+    if (pieces[0] == NULL) {
+        printEspecificBlocks(*memoryBlockList, SHARED_MEMORY);
+        return;
+    }
 
-   cl=(key_t)  strtoul(pieces[0],NULL,10);tam=(size_t) strtoul(pieces[1],NULL,10);
+    cl = (key_t) strtoul(pieces[0], NULL, 10);
 
-    // Intentar obtener la memoria compartida
     if ((p = ObtenerMemoriaShmget(cl, 0)) != NULL) {
-        printf("Asignada memoria compartida de clave %lu en %p\n", (unsigned long)cl, p);
+        printf("Memoria compartida de clave %lu en %p\n", (unsigned long)cl, p);
 
-        // Insertar en la lista de bloques de memoria
-        if (!insertMemoryBlockB(&memoryBlockList, p, tam, SHARED_MEMORY, cl, NULL, -1)) {
-            fprintf(stderr, "Error al insertar el bloque de memoria compartida en la lista\n");
+        struct shmid_ds s;
+        if (shmctl(shmget(cl, 0, 0666), IPC_STAT, &s) == 0) {
+            if (!insertMemoryBlockB(memoryBlockList, p, s.shm_segsz, SHARED_MEMORY, cl, NULL, df)) {
+                fprintf(stderr, "Error al insertar el bloque de memoria compartida en la lista\n");
+                shmdt(p);
+            }
         }
     } else {
-        printf("Imposible asignar memoria compartida clave %lu:%s\n", (unsigned long)cl, strerror(errno));
+        fprintf(stderr, "Imposible asignar memoria compartida clave %lu: %s\n", (unsigned long)cl, strerror(errno));
     }
 }
 
 //función mapea un archivo en la memoria del proceso usando mmap
-void * MapearFichero (char * fichero, int protection)\
+void * MapearFichero (char * fichero, int protection, OpenFileList *openFileList)\
 {
     int df, map=MAP_PRIVATE,modo=O_RDONLY;
     struct stat s;
@@ -938,53 +954,67 @@ void * MapearFichero (char * fichero, int protection)\
           return NULL;
     if ((p=mmap (NULL,s.st_size, protection,map,df,0))==MAP_FAILED)
            return NULL;
-/* Guardar en la lista    InsertarNodoMmap (&L,p, s.st_size,df,fichero); */
-/* Gurdas en la lista de descriptores usados df, fichero*/
+
+    // Add the file descriptor to the open file list
+    tItemF item = defineItem(df, modo, fichero);
+    if (!insertItemF(item, openFileList)) {
+        perror("Error al insertar el descriptor en la lista de archivos abiertos");
+        munmap(p, s.st_size);
+        close(df);
+        return NULL;
+    }
+
     return p;
 }
 
 //función llama a MapearFichero para mapear un archivo
-void do_AllocateMmap(char *pieces[])
+void do_AllocateMmap(char *pieces[], MemoryBlockList *memoryBlockList, OpenFileList *openFileList)
 {
      char *perm;
      void *p;
      int protection=0;
-     size_t tam;
+     int df;
 
      if (pieces[0]==NULL)
-            {printEspecificBlocks(memoryBlockList,MAPPED_FILE); return;}
+            {printEspecificBlocks(*memoryBlockList,MAPPED_FILE); return;}
      if ((perm=pieces[1])!=NULL && strlen(perm)<4) {
             if (strchr(perm,'r')!=NULL) protection|=PROT_READ;
             if (strchr(perm,'w')!=NULL) protection|=PROT_WRITE;
             if (strchr(perm,'x')!=NULL) protection|=PROT_EXEC;
      }
+
+    df = open(pieces[0], O_RDONLY);
+    if (df == -1) {
+        perror("Error opening file");
+        return;
+    }
+
     // Mapear el archivo
-    if ((p = MapearFichero(pieces[0], protection)) == NULL) {
+    if ((p = MapearFichero(pieces[0], protection, openFileList)) == NULL) {
         perror("Imposible mapear fichero");
     } else {
         printf("Fichero %s mapeado en %p\n", pieces[0], p);
 
-        tam=(size_t) strtoul(pieces[1],NULL,10);
-
-        // Insertar en la lista de bloques de memoria
-        if (!insertMemoryBlockB(&memoryBlockList, p, tam, MAPPED_FILE, -1, pieces[0], -1)) {
-            fprintf(stderr, "Error al insertar el bloque de memoria mapeada en la lista\n");
+        struct stat s;
+        if (stat(pieces[0], &s) == 0) {
+            if (!insertMemoryBlockB(memoryBlockList, p, s.st_size, MAPPED_FILE, -1, pieces[0], df)) {
+                fprintf(stderr, "Error al insertar el bloque de memoria mapeada en la lista\n");
+            }
         }
     }
 }
 
-//No se imprime lo que tiene que imprimir con allocate y allocate -malloc ademós cuando se hace allocate -malloc 0 reserva 0
 
 //Es un gestor de asignación de memoria que recibe argumentos y decide qué tipo de asignación realizar
-void command_allocate(char *pieces[], MemoryBlockList *memoryBlockList) {
+void command_allocate(char *pieces[], MemoryBlockList *memoryBlockList, OpenFileList *openFileList) {
     if (pieces[1] == NULL) {
-        fprintf(stderr, "Error: Faltan argumentos para el comando allocate\n");
+        printAllBlocks(*memoryBlockList);
         return;
     }
 
     if (strcmp(pieces[1], "-malloc") == 0) {
         if (pieces[2] == NULL) {
-            fprintf(stderr, "Error: Falta el tamaño para malloc\n");
+            printEspecificBlocks(*memoryBlockList, MALLOC_MEMORY);
             return;
         }
         size_t n = (size_t) strtoul(pieces[2], NULL, 10);
@@ -1006,13 +1036,25 @@ void command_allocate(char *pieces[], MemoryBlockList *memoryBlockList) {
         }
 
     } else if (strcmp(pieces[1], "-mmap") == 0) {
-        do_AllocateMmap(pieces + 2);
+        if (pieces[2] == NULL) {
+            printEspecificBlocks(*memoryBlockList, MAPPED_FILE);
+        } else {
+            do_AllocateMmap(pieces + 2, memoryBlockList, openFileList);
+        }
 
     } else if (strcmp(pieces[1], "-createshared") == 0) {
-        do_AllocateCreateshared(pieces + 3);
+        if (pieces[2] == NULL) {
+            printEspecificBlocks(*memoryBlockList, SHARED_MEMORY);
+        } else {
+            do_AllocateCreateshared(pieces + 2, memoryBlockList);
+        }
 
     } else if (strcmp(pieces[1], "-shared") == 0) {
-        do_AllocateShared(pieces + 2);
+        if (pieces[2] == NULL) {
+            printEspecificBlocks(*memoryBlockList, SHARED_MEMORY);
+        } else {
+            do_AllocateShared(pieces + 2, memoryBlockList);
+        }
     } else {
         fprintf(stderr, "Opción desconocida para allocate\n");
     }
@@ -1403,7 +1445,7 @@ void command_writefile(char *pieces[]) {
         fprintf(stderr, "Advertencia: No se pudieron escribir todos los bytes\n");
     }
 
-    printf("Escritos %zd bytes en %s desde la dirección de memoria %p\n", written, filename, addr);
+    printf("Escritos %zd bytes en %s desde %p\n", written, filename, addr);
 
     close(fd);
 }
@@ -1415,47 +1457,25 @@ void command_write(char *pieces[]) {
     void *addr;
     size_t cont;
     ssize_t written;
-    unsigned char ch = 'A';  // Default character to fill memory
 
-
-
-    // Verificar que se proporcionen todos los argumentos necesarios
+    // Verificar que los argumentos mínimos están presentes
     if (pieces[1] == NULL || pieces[2] == NULL || pieces[3] == NULL) {
         fprintf(stderr, "Error: Faltan argumentos para el comando write\n");
-        fprintf(stderr, "Uso: write <file_descriptor> <addr> <cont>\n");
+        fprintf(stderr, "Uso: write <fd> <addr> <cont>\n");
         return;
     }
 
-    fd = strtol(pieces[1], NULL, 10);  // Convertir el descriptor de archivo de cadena a entero
-    if (fd <= 0) {   // Verificar si el descriptor de archivo es válido
-        fprintf(stderr, "No ejecutado: No such file or directory\n");
-        return;
-    }
+    // Convertir los argumentos
+    fd = (int) strtol(pieces[1], NULL, 10);
+    addr = cadtop(pieces[2]);
+    cont = (size_t) strtoul(pieces[3], NULL, 10);
 
-    // Convertir addr de cadena hexadecimal a puntero
-    addr = (void *)strtoull(pieces[2], NULL, 16);
-    if (addr == NULL) {
-        fprintf(stderr, "Error: Dirección de memoria no válida\n");
-        return;
-    }
-
-    // Convertir cont de cadena a tamaño entero
-    cont = (size_t)strtoull(pieces[3], NULL, 10);
-
-    // Llenar la memoria con el carácter 'A'
-    memset(addr, ch, cont);
-
-    // Intentar escribir en el archivo desde la memoria
+    // Escribir en el archivo desde la dirección de memoria especificada
     written = write(fd, addr, cont);
     if (written == -1) {
-        perror("Error al escribir en el fichero");
-        return;
-    } else if ((size_t)written != cont) {
-        // Advertencia si no se escriben todos los bytes solicitados
-        fprintf(stderr, "Advertencia: No se escribieron todos los bytes solicitados (%zd bytes escritos de %zu solicitados)\n", written, cont);
+        perror("Error al escribir en el archivo");
+    } else {
+        printf("Escritos %zd bytes en el descriptor %d desde la direccion %p\n", written, fd, addr);
     }
-
-    // Mensaje de confirmación
-    printf("Escritos %zd bytes en el descriptor %d desde la dirección de memoria %p\n", written, fd, addr);
 }
 void command_recurse(){}

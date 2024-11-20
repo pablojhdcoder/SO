@@ -41,7 +41,7 @@ struct tNodeB {
 
 
 void createEmptyListB(MemoryBlockList *L);
-bool isEmptyListB(MemoryBlockList *L);
+bool isEmptyListB(MemoryBlockList L);
 bool createNode(tPosB *p);
 tPosB firstB(MemoryBlockList L);
 tPosB next(MemoryBlockList L);
