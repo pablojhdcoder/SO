@@ -1239,15 +1239,19 @@ void *cadtop(char *cadena) {
 
 //Llena una región de memoria con un byte específico
 void command_memfill(char *pieces[]) {
-    if (pieces[1] == NULL || pieces[2] == NULL) {
+    if (pieces[1] == NULL) {
         fprintf(stderr, "Error: Faltan argumentos para el comando memfill\n");
         fprintf(stderr, "Uso: memfill <addr> <cont> <ch>\n");
         return;
     }
 
     void *addr = cadtop(pieces[1]);  // Convertir la dirección de memoria de cadena a puntero
-    size_t cont = (size_t) strtoul(pieces[2], NULL, 10);  // Convertir el tamaño de la memoria
+    size_t cont = 128;  // Valor por defecto 128 si no se pasa un segundo argumento
     unsigned char ch = 0x41;  // Valor por defecto 'A' (0x41) si no se pasa un tercer argumento
+
+    if (pieces[2] != NULL) {
+        cont = (size_t) strtoul(pieces[2], NULL, 10);  // Convertir el tamaño de la memoria
+    }
 
     if (pieces[3] != NULL) {
         if (pieces[3][0] == '0' && pieces[3][1] == 'x') {    // Verificar si el tercer argumento es un número hexadecimal
