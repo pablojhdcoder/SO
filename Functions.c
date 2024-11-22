@@ -248,22 +248,22 @@ void processInput(bool *finished,tItemH *str,char *pieces[], CommandListC *comma
             command_memdump(pieces);
             break;
         case 23:
-            command_memory(pieces);
+            command_memory(pieces, *memoryBlockList);
             break;
         case 24:
-            command_readfile();
+            command_readfile(pieces);
             break;
         case 25:
             command_writefile(pieces);
             break;
         case 26:
-            command_read();
+            command_read(pieces, fileList);
             break;
         case 27:
             command_write(pieces);
             break;
         case 28:
-            command_recurse();
+            command_recurse(pieces);
             break;
         case 29:
             command_help(pieces,commandList);
