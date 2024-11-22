@@ -32,7 +32,6 @@ typedef struct {
 
 typedef struct tNodeB* tPosB;
 typedef tPosB MemoryBlockList;
-extern MemoryBlockList memoryList;  // Lista de bloques de memoria asignados
 
 struct tNodeB {
     tItemB data;

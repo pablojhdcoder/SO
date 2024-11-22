@@ -77,7 +77,7 @@ bool insertMemoryBlockB(MemoryBlockList *L, void *address, size_t size, Allocati
 }
 
 void removeMemoryBlock(MemoryBlockList *L, tPosB pos) {
-    if (!isEmptyListB(L)) {
+    if (!isEmptyListB(*L)) {
         tPosB q;
         if (pos == *L) {
             *L = (*L) -> next;
@@ -97,7 +97,17 @@ void removeMemoryBlock(MemoryBlockList *L, tPosB pos) {
 }
 
 static void printBlockDetails(tPosB p) {
-    printf("%p\t%zu\t%s\t", p->data.address, p->data.size, p->data.allocationTime);
+    /*
+     * 1. Dirección en donde está almacenado el bloque de memoria (p->data.address)
+     * 2. Tamaño del bloque de memoria (p->data.size)
+     * 3. Fecha en que se alocó el bloque de memoria (p->data.allocationTime)
+     * 4. Clave de memoria compartida, si se usó memoria compartida (p->data.smKey)
+     * 5. Nombre del fichero, si el bloque se alocó mapeando un archivo (p->data.fileName)
+     * 6. Descriptor de archivo, si el bloque está asociado con un archivo mapeado (p->data.fileDescriptor)
+     * 7. Tipo de recurso con el que se alocó el bloque de memoria (p->data.type, puede ser: MALLOC_MEMORY, SHARED_MEMORY o MAPPED_FILE)
+     */
+    // Ya se guarda la hora formateada previamente en la estructura, así que ahora solo la imprimimos.
+    printf("%20p\t%zu\t%s\t", p->data.address, p->data.size, p->data.allocationTime);
     if (p->data.type == SHARED_MEMORY) {
         printf("shared (key %d)", p->data.smKey);
     } else if (p->data.type == MAPPED_FILE) {
@@ -109,9 +119,10 @@ static void printBlockDetails(tPosB p) {
 }
 
 
+
 void printAllBlocks(MemoryBlockList L) {
     printf("******Lista de bloques asignados para el proceso %d\n", getpid());
-    if (!isEmptyListB(&L)) {
+    if (!isEmptyListB(L)) {
         for (tPosB p = L; p != BNULL; p = p->next) {
             printBlockDetails(p);
         }
@@ -120,10 +131,9 @@ void printAllBlocks(MemoryBlockList L) {
     }
 }
 
-//esta printeando dos veces
 void printEspecificBlocks(MemoryBlockList L, AllocationType type) {
     printf("******Lista de bloques asignados con %s para el proceso %d\n", CategoryToString(type), getpid());
-    if (!isEmptyListB(&L)) {
+    if (!isEmptyListB(L)) {
         for (tPosB p = L; p != BNULL; p = p->next) {
             if (p->data.type == type) {
                 printBlockDetails(p);
