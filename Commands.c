@@ -1,7 +1,7 @@
 #include "Commands.h"
 
 int ext_var1, ext_var2, ext_var3;
-int ext_init_var1 = 10, ext_init_var2 = 20, ext_init_var3 = 30;  // Valores de ejemplo
+int ext_init_var1 = 10, ext_init_var2 = 20, ext_init_var3 = 30;  //Valores de ejemplo
 MemoryBlockList memoryBlockList;
 
 
@@ -889,18 +889,12 @@ void do_AllocateCreateshared(char *pieces[], MemoryBlockList *memoryBlockList) {
         return;
     }
 
-    int df = open(pieces[0], O_RDONLY);
-    if (df == -1) {
-        perror("Error opening file");
-        return;
-    }
-
     // Caso 3: "allocate -createshared <key> <size>"
     void *p = ObtenerMemoriaShmget(cl, tam);
     if (p != NULL) {
         printf("Asignados %lu bytes en %p\n", (unsigned long)tam, p);
 
-        if (!insertMemoryBlockB(memoryBlockList, p, tam, SHARED_MEMORY, cl, NULL, df)) {
+        if (!insertMemoryBlockB(memoryBlockList, p, tam, SHARED_MEMORY, cl, NULL, -1)) {
             fprintf(stderr, "Error al insertar el bloque de memoria compartida en la lista\n");
         }
     } else {
@@ -913,11 +907,6 @@ void do_AllocateCreateshared(char *pieces[], MemoryBlockList *memoryBlockList) {
 void do_AllocateShared(char *pieces[], MemoryBlockList *memoryBlockList) {
     key_t cl;
     void *p;
-    int df = open(pieces[0], O_RDONLY);
-    if (df == -1) {
-        perror("Error opening file");
-        return;
-    }
 
     if (pieces[0] == NULL) {
         printEspecificBlocks(*memoryBlockList, SHARED_MEMORY);
@@ -931,7 +920,7 @@ void do_AllocateShared(char *pieces[], MemoryBlockList *memoryBlockList) {
 
         struct shmid_ds s;
         if (shmctl(shmget(cl, 0, 0666), IPC_STAT, &s) == 0) {
-            if (!insertMemoryBlockB(memoryBlockList, p, s.shm_segsz, SHARED_MEMORY, cl, NULL, df)) {
+            if (!insertMemoryBlockB(memoryBlockList, p, s.shm_segsz, SHARED_MEMORY, cl, NULL, -1)) {
                 fprintf(stderr, "Error al insertar el bloque de memoria compartida en la lista\n");
                 shmdt(p);
             }
