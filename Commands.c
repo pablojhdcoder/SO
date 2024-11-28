@@ -817,7 +817,7 @@ void command_delrec(char *pieces[]) {
 }
 
 //función asigna memoria compartida
-static void * ObtenerMemoriaShmget (key_t clave, size_t tam){
+void * ObtenerMemoriaShmget (key_t clave, size_t tam){
     void * p;
     int aux,id,flags=0777;
     struct shmid_ds s;
@@ -842,7 +842,7 @@ static void * ObtenerMemoriaShmget (key_t clave, size_t tam){
 
 
 //función gestiona la asignación de memoria compartida
-static void do_AllocateCreateshared(char *pieces[], MemoryBlockList *memoryBlockList) {
+void do_AllocateCreateshared(char *pieces[], MemoryBlockList *memoryBlockList) {
     if (pieces[0] == NULL) {
         // Caso 1: "allocate -createshared"
         printEspecificBlocks(*memoryBlockList, SHARED_MEMORY);
@@ -878,7 +878,7 @@ static void do_AllocateCreateshared(char *pieces[], MemoryBlockList *memoryBlock
 }
 
 //función intenta asignar un segmento de memoria compartida existente
-static void do_AllocateShared(char *pieces[], MemoryBlockList *memoryBlockList) {
+void do_AllocateShared(char *pieces[], MemoryBlockList *memoryBlockList) {
     key_t cl;
     void *p;
 
@@ -903,33 +903,33 @@ static void do_AllocateShared(char *pieces[], MemoryBlockList *memoryBlockList) 
     }
 }
 
-    //función mapea un archivo en la memoria del proceso usando mmap
-    static void * MapearFichero (char * fichero, int protection, OpenFileList *openFileList, MemoryBlockList *memoryBlockList){
-        int df, map=MAP_PRIVATE,modo=O_RDONLY;
-        struct stat s;
-        void *p;
+//función mapea un archivo en la memoria del proceso usando mmap
+void * MapearFichero (char * fichero, int protection, OpenFileList *openFileList, MemoryBlockList *memoryBlockList){
+    int df, map=MAP_PRIVATE,modo=O_RDONLY;
+    struct stat s;
+    void *p;
 
-        if (protection&PROT_WRITE)
-            modo=O_RDWR;
-        if (stat(fichero,&s)==-1 || (df=open(fichero, modo))==-1)
-            return NULL;
-        if ((p=mmap (NULL,s.st_size, protection,map,df,0))==MAP_FAILED)
-            return NULL;
+    if (protection&PROT_WRITE)
+        modo=O_RDWR;
+    if (stat(fichero,&s)==-1 || (df=open(fichero, modo))==-1)
+        return NULL;
+    if ((p=mmap (NULL,s.st_size, protection,map,df,0))==MAP_FAILED)
+        return NULL;
 
-        // Añade el df a la lista de ficheros abiertos
-        tItemF item = defineItem(df, modo, fichero);
-        if (!insertItemF(item, openFileList) || !insertMemoryBlockB(memoryBlockList, p, s.st_size, MAPPED_FILE, -1, fichero, df)) {
-            perror("Error al insertar el descriptor o el bloque en las listas");
-            munmap(p, s.st_size);
-            close(df);
-            return NULL;
-        }
-
-
-        return p;
+    // Añade el df a la lista de ficheros abiertos
+    tItemF item = defineItem(df, modo, fichero);
+    if (!insertItemF(item, openFileList) || !insertMemoryBlockB(memoryBlockList, p, s.st_size, MAPPED_FILE, -1, fichero, df)) {
+        perror("Error al insertar el descriptor o el bloque en las listas");
+        munmap(p, s.st_size);
+        close(df);
+        return NULL;
     }
+
+
+    return p;
+}
 //Función llama a MapearFichero para mapear un archivo
-static void do_AllocateMmap(char *pieces[], MemoryBlockList *memoryBlockList, OpenFileList *openFileList)
+void do_AllocateMmap(char *pieces[], MemoryBlockList *memoryBlockList, OpenFileList *openFileList)
 {
     char *perm;
     void *p;
@@ -1049,13 +1049,6 @@ static void do_DeallocateMmap (char *args[],MemoryBlockList *memblocks) {
             }
             p = next(p);
         }
-
-        // Verificar si se encontró el bloque, sino imprimimos error y salimos para no pasarle un puntero nulo a munmap
-        if (p == BNULL) {
-            fprintf(stderr,"Fichero %s no mapeado\n", args[0]);
-            return;
-        }
-
         if(munmap(p->data.address,p->data.size) == -1) {
             perror("Error al desmapear el archivo");
         }
@@ -1118,31 +1111,20 @@ static void do_DeallocateDelkey (char *args[]){
         perror ("shmctl: imposible eliminar memoria compartida\n");
 }
 
-//Convierte la cadena a un número hexadecimal
-void *cadtop(char *cadena) {
-    //strtoull de la biblioteca estándar de C para convertir la cadena hexadecimal a un número sin signo de 64 bits
-    //(unsigned long long int).
-    unsigned long long int direccion = strtoull(cadena, NULL, 16); //16 indica la base hexadecimal.
-    //Luego, ese número se interpreta como una dirección de memoria y se convierte en un puntero.
-    return (void *)direccion;
-}
-
 static void do_DeallocateAdd (char *args[], MemoryBlockList *memblocks) {
-    void *addr = cadtop(args[0]);  // Convertir la dirección de memoria de cadena a puntero
     tPosB p = firstB(*memblocks);
-
     while (p != BNULL) {
-        if (p->data.address == addr) {
+        if (p->data.address == args[0]) {
             break; // Encontramos el bloque
         }
         p = next(p);
     }
     if (p == BNULL) {
-        fprintf(stderr,"Direccion %p no asignada con malloc, shared o mmap\n",args[0]);
+        fprintf(stderr,"Direccion %p no asignada con malloc, shared o mmap",args[0]);
     }else {
         switch (p->data.type) {
             case MALLOC_MEMORY:
-                free(addr);
+                free(args[0]);
                 break;
             case SHARED_MEMORY:
                 if (shmdt(p->data.address) == -1)
@@ -1192,6 +1174,15 @@ void command_deallocate(char *pieces[],MemoryBlockList *memblocks) {
         printAllBlocks(*memblocks);
 }
 
+
+//Convierte la cadena a un número hexadecimal
+void *cadtop(char *cadena) {
+    //strtoull de la biblioteca estándar de C para convertir la cadena hexadecimal a un número sin signo de 64 bits
+    //(unsigned long long int).
+    unsigned long long int direccion = strtoull(cadena, NULL, 16); //16 indica la base hexadecimal.
+    //Luego, ese número se interpreta como una dirección de memoria y se convierte en un puntero.
+    return (void *)direccion;
+}
 
 //Llena una región de memoria con un valor específico
 void LlenarMemoria (void *p, size_t cont, unsigned char byte){
@@ -1244,19 +1235,18 @@ void command_memdump(char *pieces[]) {
         }else {
             cont = 25;  //Tamaño a volcar predeterminado (25 bytes)
         }
-        printf("Volcando %lu bytes desde la direccion %p\n",cont,addr);
+        printf("Volcando %lu bytes desde la direccion %p",cont,addr);
         // Volcamos los contenidos de memoria en bloques de 16 bytes
         for(i = 0; i < cont; i+=25) {
-            printf(" ");  // Espaciado inicial para alineación
 
             // Imprimir los caracteres imprimibles correspondientes a los bytes
             for (j = 0; j < 25 && i + j < cont; ++j) {
                 unsigned char byte = byte_ptr[i + j];
                 // Si el byte es imprimible, lo mostramos; de lo contrario, mostramos '.'
-                printf(" %c ", isprint(byte) ? byte : '.');
+                printf("%c ", isprint(byte) ? byte : '.');
             }
             printf("\n");
-            printf(" ");
+
             for(j = 0; j < 25 && i + j < cont; j++) {
                 printf("%02x ", byte_ptr[i + j]);
             }
@@ -1315,9 +1305,9 @@ void command_memory(char *pieces[], MemoryBlockList memoryBlockList) {
         int local_var1, local_var2, local_var3;
         printf("Variables locales       %p,    %p,    %p\n", (void *)&local_var1, (void *)&local_var2, (void *)&local_var3);
 
-        printf("Variables globales      %p,    %p,    %p\n", (void *)&ext_init_var1, (void *)&ext_init_var2, (void *)&ext_init_var3);
+        printf("Variables globales      %p,    %p,    %p\n", (void *)&ext_var1, (void *)&ext_var2, (void *)&ext_var3);
 
-        printf("Var (N.I.)globales      %p,    %p,    %p\n", (void *)&ext_var1, (void *)&ext_var2, (void *)&ext_var3);
+        printf("Var (N.I.)globales      %p,    %p,    %p\n", (void *)&ext_init_var1, (void *)&ext_init_var2, (void *)&ext_init_var3);
 
         static int static_var1, static_var2, static_var3;
         printf("Variables staticas      %p,    %p,    %p\n", (void *)&static_var1, (void *)&static_var2, (void *)&static_var3);
@@ -1445,12 +1435,13 @@ void command_writefile(char *pieces[]) {
 }
 
 //Lee un archivo en una región de memoria específica
-ssize_t LeerDF (int df, void *p, ssize_t cont)
+ssize_t LeerDF (int df, void *p, size_t cont)
 {
     struct stat s;
     ssize_t  n;
+
     // Obtener información del archivo si es necesario, es decir si queremos leerlo todo simplemente obtenemos el tamaño para leerlo todo
-    if (cont == -1) {
+    if (cont == (size_t)-1) {
         if (fstat(df, &s) == -1) {
             perror("Error obteniendo información del archivo");
             return -1;
@@ -1466,7 +1457,7 @@ ssize_t LeerDF (int df, void *p, ssize_t cont)
 
 void command_read(char *ar[], OpenFileList *file_list) {
     void *p;
-    ssize_t cont=-1;  /*si no pasamos tamano se lee entero */
+    size_t cont=-1;  /*si no pasamos tamano se lee entero */
     ssize_t n;
     int fd;
 
@@ -1487,7 +1478,7 @@ void command_read(char *ar[], OpenFileList *file_list) {
 
     // Si se proporciona ar[3], lo interpretamos como el tamaño a leer
     if (ar[3]!=NULL) {
-        cont= atoll(ar[3]);
+        cont=(size_t) atoll(ar[3]);
         if (cont == 0) {
             printf("Error: El tamaño a leer no puede ser 0\n");
             return;
@@ -1497,7 +1488,7 @@ void command_read(char *ar[], OpenFileList *file_list) {
     if ((n=LeerDF(fd,p,cont))==-1)
         perror ("Imposible leer fichero");
     else
-        printf ("leidos %lld bytes del descriptor %s en la %p\n",(long long) n,ar[1],p);
+        printf ("leidos %lld bytes de %s en %p\n",(long long) n,ar[1],p);
 }
 
 
