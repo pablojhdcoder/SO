@@ -19,6 +19,7 @@
 #include <sys/shm.h>  // Para shmget(), shmat(), shmdt(), shmctl()
 #include <sys/wait.h>  // Para waitpid()
 #include <ctype.h>   // Para isdigit()
+#include <sys/resource.h> // Para getpriority()
 
 #include "CommandList.h"
 #include "HistoryList.h"

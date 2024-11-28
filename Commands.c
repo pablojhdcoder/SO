@@ -2,8 +2,6 @@
 
 int ext_var1, ext_var2, ext_var3;
 int ext_init_var1 = 10, ext_init_var2 = 20, ext_init_var3 = 30;  // Valores de ejemplo
-MemoryBlockList memoryBlockList;
-
 
 //Imprime el nombre y/o los logins de los autores
 void command_authors(char * pieces[]) {
@@ -818,33 +816,8 @@ void command_delrec(char *pieces[]) {
     }
 }
 
-
-
-
-//función recursiva que muestra la dirección de su parámetro
-void Recursiva (int n){
-  char automatico[TAMANO];
-  static char estatico[TAMANO];
-
-  printf ("parametro:%3d(%p) array %p, arr estatico %p\n",n,&n,automatico, estatico);
-
-  if (n>0)
-    Recursiva(n-1);       //permite observar cómo cambia la pila de llamadas en cada recursión.
-}
-
-//Llena una región de memoria con un valor específico
-void LlenarMemoria (void *p, size_t cont, unsigned char byte)
-{
-  unsigned char *arr=(unsigned char *) p;
-  size_t i;
-
-  for (i=0; i<cont;i++)
-		arr[i]=byte;
-}
-
 //función asigna memoria compartida
-void * ObtenerMemoriaShmget (key_t clave, size_t tam)
-{
+static void * ObtenerMemoriaShmget (key_t clave, size_t tam){
     void * p;
     int aux,id,flags=0777;
     struct shmid_ds s;
@@ -863,12 +836,13 @@ void * ObtenerMemoriaShmget (key_t clave, size_t tam)
         return (NULL);
     }
     shmctl (id,IPC_STAT,&s); /* si no es crear, necesitamos el tamano, que es s.shm_segsz*/
-
+ /* Guardar en la lista   InsertarNodoShared (&L, p, s.shm_segsz, clave); */
     return (p);
 }
 
+
 //función gestiona la asignación de memoria compartida
-void do_AllocateCreateshared(char *pieces[], MemoryBlockList *memoryBlockList) {
+static void do_AllocateCreateshared(char *pieces[], MemoryBlockList *memoryBlockList) {
     if (pieces[0] == NULL) {
         // Caso 1: "allocate -createshared"
         printEspecificBlocks(*memoryBlockList, SHARED_MEMORY);
@@ -889,18 +863,12 @@ void do_AllocateCreateshared(char *pieces[], MemoryBlockList *memoryBlockList) {
         return;
     }
 
-    int df = open(pieces[0], O_RDONLY);
-    if (df == -1) {
-        perror("Error opening file");
-        return;
-    }
-
     // Caso 3: "allocate -createshared <key> <size>"
     void *p = ObtenerMemoriaShmget(cl, tam);
     if (p != NULL) {
         printf("Asignados %lu bytes en %p\n", (unsigned long)tam, p);
 
-        if (!insertMemoryBlockB(memoryBlockList, p, tam, SHARED_MEMORY, cl, NULL, df)) {
+        if (!insertMemoryBlockB(memoryBlockList, p, tam, SHARED_MEMORY, cl, BNULL, -1)) {
             fprintf(stderr, "Error al insertar el bloque de memoria compartida en la lista\n");
         }
     } else {
@@ -910,14 +878,9 @@ void do_AllocateCreateshared(char *pieces[], MemoryBlockList *memoryBlockList) {
 }
 
 //función intenta asignar un segmento de memoria compartida existente
-void do_AllocateShared(char *pieces[], MemoryBlockList *memoryBlockList) {
+static void do_AllocateShared(char *pieces[], MemoryBlockList *memoryBlockList) {
     key_t cl;
     void *p;
-    int df = open(pieces[0], O_RDONLY);
-    if (df == -1) {
-        perror("Error opening file");
-        return;
-    }
 
     if (pieces[0] == NULL) {
         printEspecificBlocks(*memoryBlockList, SHARED_MEMORY);
@@ -928,10 +891,9 @@ void do_AllocateShared(char *pieces[], MemoryBlockList *memoryBlockList) {
 
     if ((p = ObtenerMemoriaShmget(cl, 0)) != NULL) {
         printf("Memoria compartida de clave %lu en %p\n", (unsigned long)cl, p);
-
         struct shmid_ds s;
         if (shmctl(shmget(cl, 0, 0666), IPC_STAT, &s) == 0) {
-            if (!insertMemoryBlockB(memoryBlockList, p, s.shm_segsz, SHARED_MEMORY, cl, NULL, df)) {
+            if (!insertMemoryBlockB(memoryBlockList, p, s.shm_segsz, SHARED_MEMORY, cl, NULL, -1)) {
                 fprintf(stderr, "Error al insertar el bloque de memoria compartida en la lista\n");
                 shmdt(p);
             }
@@ -941,66 +903,51 @@ void do_AllocateShared(char *pieces[], MemoryBlockList *memoryBlockList) {
     }
 }
 
-//función mapea un archivo en la memoria del proceso usando mmap
-void * MapearFichero (char * fichero, int protection, OpenFileList *openFileList)\
-{
-    int df, map=MAP_PRIVATE,modo=O_RDONLY;
-    struct stat s;
-    void *p;
+    //función mapea un archivo en la memoria del proceso usando mmap
+    static void * MapearFichero (char * fichero, int protection, OpenFileList *openFileList, MemoryBlockList *memoryBlockList){
+        int df, map=MAP_PRIVATE,modo=O_RDONLY;
+        struct stat s;
+        void *p;
 
-    if (protection&PROT_WRITE)
-          modo=O_RDWR;
-    if (stat(fichero,&s)==-1 || (df=open(fichero, modo))==-1)
-          return NULL;
-    if ((p=mmap (NULL,s.st_size, protection,map,df,0))==MAP_FAILED)
-           return NULL;
+        if (protection&PROT_WRITE)
+            modo=O_RDWR;
+        if (stat(fichero,&s)==-1 || (df=open(fichero, modo))==-1)
+            return NULL;
+        if ((p=mmap (NULL,s.st_size, protection,map,df,0))==MAP_FAILED)
+            return NULL;
 
-    // Add the file descriptor to the open file list
-    tItemF item = defineItem(df, modo, fichero);
-    if (!insertItemF(item, openFileList)) {
-        perror("Error al insertar el descriptor en la lista de archivos abiertos");
-        munmap(p, s.st_size);
-        close(df);
-        return NULL;
+        // Añade el df a la lista de ficheros abiertos
+        tItemF item = defineItem(df, modo, fichero);
+        if (!insertItemF(item, openFileList) || !insertMemoryBlockB(memoryBlockList, p, s.st_size, MAPPED_FILE, -1, fichero, df)) {
+            perror("Error al insertar el descriptor o el bloque en las listas");
+            munmap(p, s.st_size);
+            close(df);
+            return NULL;
+        }
+
+
+        return p;
     }
-
-    return p;
-}
-
-//función llama a MapearFichero para mapear un archivo
-void do_AllocateMmap(char *pieces[], MemoryBlockList *memoryBlockList, OpenFileList *openFileList)
+//Función llama a MapearFichero para mapear un archivo
+static void do_AllocateMmap(char *pieces[], MemoryBlockList *memoryBlockList, OpenFileList *openFileList)
 {
-     char *perm;
-     void *p;
-     int protection=0;
-     int df;
+    char *perm;
+    void *p;
+    int protection=0;
 
-     if (pieces[0]==NULL)
-            {printEspecificBlocks(*memoryBlockList,MAPPED_FILE); return;}
-     if ((perm=pieces[1])!=NULL && strlen(perm)<4) {
-            if (strchr(perm,'r')!=NULL) protection|=PROT_READ;
-            if (strchr(perm,'w')!=NULL) protection|=PROT_WRITE;
-            if (strchr(perm,'x')!=NULL) protection|=PROT_EXEC;
-     }
-
-    df = open(pieces[0], O_RDONLY);
-    if (df == -1) {
-        perror("Error opening file");
-        return;
+    if (pieces[0]==NULL)
+    {printEspecificBlocks(*memoryBlockList,MAPPED_FILE); return;}
+    if ((perm=pieces[1])!=NULL && strlen(perm)<4) {
+        if (strchr(perm,'r')!=NULL) protection|=PROT_READ;
+        if (strchr(perm,'w')!=NULL) protection|=PROT_WRITE;
+        if (strchr(perm,'x')!=NULL) protection|=PROT_EXEC;
     }
 
     // Mapear el archivo
-    if ((p = MapearFichero(pieces[0], protection, openFileList)) == NULL) {
+    if ((p = MapearFichero(pieces[0], protection, openFileList,memoryBlockList)) == NULL) {
         perror("Imposible mapear fichero");
     } else {
         printf("Fichero %s mapeado en %p\n", pieces[0], p);
-
-        struct stat s;
-        if (stat(pieces[0], &s) == 0) {
-            if (!insertMemoryBlockB(memoryBlockList, p, s.st_size, MAPPED_FILE, -1, pieces[0], df)) {
-                fprintf(stderr, "Error al insertar el bloque de memoria mapeada en la lista\n");
-            }
-        }
     }
 }
 
@@ -1060,6 +1007,7 @@ void command_allocate(char *pieces[], MemoryBlockList *memoryBlockList, OpenFile
     }
 }
 
+
 static void do_DeallocateMalloc(char *args[], MemoryBlockList *memblocks) {
     char *NoValidCharacter;
     if (args[0] != NULL) {
@@ -1101,6 +1049,13 @@ static void do_DeallocateMmap (char *args[],MemoryBlockList *memblocks) {
             }
             p = next(p);
         }
+
+        // Verificar si se encontró el bloque, sino imprimimos error y salimos para no pasarle un puntero nulo a munmap
+        if (p == BNULL) {
+            fprintf(stderr,"Fichero %s no mapeado\n", args[0]);
+            return;
+        }
+
         if(munmap(p->data.address,p->data.size) == -1) {
             perror("Error al desmapear el archivo");
         }
@@ -1163,20 +1118,31 @@ static void do_DeallocateDelkey (char *args[]){
         perror ("shmctl: imposible eliminar memoria compartida\n");
 }
 
+//Convierte la cadena a un número hexadecimal
+void *cadtop(char *cadena) {
+    //strtoull de la biblioteca estándar de C para convertir la cadena hexadecimal a un número sin signo de 64 bits
+    //(unsigned long long int).
+    unsigned long long int direccion = strtoull(cadena, NULL, 16); //16 indica la base hexadecimal.
+    //Luego, ese número se interpreta como una dirección de memoria y se convierte en un puntero.
+    return (void *)direccion;
+}
+
 static void do_DeallocateAdd (char *args[], MemoryBlockList *memblocks) {
+    void *addr = cadtop(args[0]);  // Convertir la dirección de memoria de cadena a puntero
     tPosB p = firstB(*memblocks);
+
     while (p != BNULL) {
-        if (p->data.address == args[0]) {
+        if (p->data.address == addr) {
             break; // Encontramos el bloque
         }
         p = next(p);
     }
     if (p == BNULL) {
-        fprintf(stderr,"Direccion %p no asignada con malloc, shared o mmap",args[0]);
+        fprintf(stderr,"Direccion %p no asignada con malloc, shared o mmap\n",args[0]);
     }else {
         switch (p->data.type) {
             case MALLOC_MEMORY:
-                free(args[0]);
+                free(addr);
                 break;
             case SHARED_MEMORY:
                 if (shmdt(p->data.address) == -1)
@@ -1227,15 +1193,14 @@ void command_deallocate(char *pieces[],MemoryBlockList *memblocks) {
 }
 
 
-//Convierte la cadena a un número hexadecimal
-void *cadtop(char *cadena) {
-    //strtoull de la biblioteca estándar de C para convertir la cadena hexadecimal a un número sin signo de 64 bits
-    //(unsigned long long int).
-    unsigned long long int direccion = strtoull(cadena, NULL, 16); //16 indica la base hexadecimal.
-    //Luego, ese número se interpreta como una dirección de memoria y se convierte en un puntero.
-    return (void *)direccion;
-}
+//Llena una región de memoria con un valor específico
+void LlenarMemoria (void *p, size_t cont, unsigned char byte){
+    unsigned char *arr=(unsigned char *) p;
+    size_t i;
 
+    for (i=0; i<cont;i++)
+        arr[i]=byte;
+}
 
 //Llena una región de memoria con un byte específico
 void command_memfill(char *pieces[]) {
@@ -1248,7 +1213,6 @@ void command_memfill(char *pieces[]) {
     void *addr = cadtop(pieces[1]);  // Convertir la dirección de memoria de cadena a puntero
     size_t cont = 128;  // Valor por defecto 128 si no se pasa un segundo argumento
     unsigned char ch = 0x41;  // Valor por defecto 'A' (0x41) si no se pasa un tercer argumento
-
     if (pieces[2] != NULL) {
         cont = (size_t) strtoul(pieces[2], NULL, 10);  // Convertir el tamaño de la memoria
     }
@@ -1270,13 +1234,33 @@ void command_memfill(char *pieces[]) {
     printf("Llenando %zu bytes de memoria con el byte %c(0x%x) a partir de la direccion %p\n", cont, ch, ch, addr);
 }
 void command_memdump(char *pieces[]) {
-    void *addr = cadtop(pieces[1]);  // Convertir la dirección de memoria de cadena a puntero
-    size_t cont = (size_t) strtoul(pieces[2], NULL, 10);  // Convertir el tamaño de la memoria
-
     if (pieces[1] != NULL) {
-        size_t i;
-        for(i = 0; i < 16; i++) {
-            printf("%p", pieces[i]);
+        void *addr = cadtop(pieces[1]);  // Convertir la dirección de memoria desde la que se empiezan a leer los bytes de cadena a puntero
+        unsigned char *byte_ptr = (unsigned char *) addr;
+        size_t cont, i, j;
+
+        if (pieces[2] != NULL) {
+            cont = (size_t) strtoul(pieces[2], NULL, 10);  // Convertir el número de bytes a leer de char a long unsigned int
+        }else {
+            cont = 25;  //Tamaño a volcar predeterminado (25 bytes)
+        }
+        printf("Volcando %lu bytes desde la direccion %p\n",cont,addr);
+        // Volcamos los contenidos de memoria en bloques de 16 bytes
+        for(i = 0; i < cont; i+=25) {
+            printf(" ");  // Espaciado inicial para alineación
+
+            // Imprimir los caracteres imprimibles correspondientes a los bytes
+            for (j = 0; j < 25 && i + j < cont; ++j) {
+                unsigned char byte = byte_ptr[i + j];
+                // Si el byte es imprimible, lo mostramos; de lo contrario, mostramos '.'
+                printf(" %c ", isprint(byte) ? byte : '.');
+            }
+            printf("\n");
+            printf(" ");
+            for(j = 0; j < 25 && i + j < cont; j++) {
+                printf("%02x ", byte_ptr[i + j]);
+            }
+            printf("\n");
         }
     }
 }
@@ -1314,7 +1298,7 @@ void Do_pmap (void){    /*sin argumentos*/
 
 
 //Print direcciones
-void command_memory(char *pieces[]) {
+void command_memory(char *pieces[], MemoryBlockList memoryBlockList) {
     if (pieces[1] == NULL) {
         fprintf(stderr, "Error: Faltan argumentos para el comando memory\n");
         return;
@@ -1331,9 +1315,9 @@ void command_memory(char *pieces[]) {
         int local_var1, local_var2, local_var3;
         printf("Variables locales       %p,    %p,    %p\n", (void *)&local_var1, (void *)&local_var2, (void *)&local_var3);
 
-        printf("Variables globales      %p,    %p,    %p\n", (void *)&ext_var1, (void *)&ext_var2, (void *)&ext_var3);
+        printf("Variables globales      %p,    %p,    %p\n", (void *)&ext_init_var1, (void *)&ext_init_var2, (void *)&ext_init_var3);
 
-        printf("Var (N.I.)globales      %p,    %p,    %p\n", (void *)&ext_init_var1, (void *)&ext_init_var2, (void *)&ext_init_var3);
+        printf("Var (N.I.)globales      %p,    %p,    %p\n", (void *)&ext_var1, (void *)&ext_var2, (void *)&ext_var3);
 
         static int static_var1, static_var2, static_var3;
         printf("Variables staticas      %p,    %p,    %p\n", (void *)&static_var1, (void *)&static_var2, (void *)&static_var3);
@@ -1347,9 +1331,10 @@ void command_memory(char *pieces[]) {
 
     } else if (strcmp(pieces[1], "-all") == 0) {
         //Mostrar todo (funciones, variables, bloques)
-        command_memory((char *[]){"memory", "-funcs", NULL});
-        command_memory((char *[]){"memory", "-vars", NULL});
-        command_memory((char *[]){"memory", "-blocks", NULL});
+        command_memory((char *[]){"memory", "-funcs", NULL},memoryBlockList);
+        command_memory((char *[]){"memory", "-vars", NULL},memoryBlockList);
+        command_memory((char *[]){"memory", "-blocks", NULL},memoryBlockList);
+
 
     } else if (strcmp(pieces[1], "-pmap") == 0) {
         Do_pmap();
@@ -1359,7 +1344,7 @@ void command_memory(char *pieces[]) {
 }
 
 //Lee un archivo en una región de memoria específica
-ssize_t LeerFichero (char *f, void *p, size_t cont)
+ssize_t LeerFichero (char *f, void *p, ssize_t cont)        //ssize_t es long int
 {
     struct stat s;
     ssize_t  n;
@@ -1370,10 +1355,10 @@ ssize_t LeerFichero (char *f, void *p, size_t cont)
     if (cont==-1)   /* si pasamos -1 como bytes a leer lo leemos entero*/
         cont=s.st_size;
     if ((n=read(df,p,cont))==-1){
-        aux=errno;
-        close(df);
-        errno=aux;
-        return -1;
+        aux=errno;      //Se guarda el valor actual de la salida de erro
+        close(df);      //Se cierra el df obviando, si se obtiene, el código de error
+        errno=aux;      //Se vuelve a establecer el error que habíamos obtenido
+        return -1;      //Se devuelve -1 porque no hemos podido leer el fichero
     }
     close (df);
     return n;
@@ -1381,20 +1366,25 @@ ssize_t LeerFichero (char *f, void *p, size_t cont)
 
 void command_readfile(char *ar[]) {
     void *p;
-    size_t cont=-1;  /*si no pasamos tamano se lee entero */
+    ssize_t cont=-1;  /*si no pasamos tamano se lee entero */
     ssize_t n;
-    if (ar[0]==NULL || ar[1]==NULL){
+    if (ar[1]==NULL || ar[2]==NULL){
         printf ("faltan parametros\n");
         return;
     }
-    p=cadtop(ar[1]);  /*convertimos de cadena a puntero*/
-    if (ar[2]!=NULL)
-        cont=(size_t) atoll(ar[2]);
 
-    if ((n=LeerFichero(ar[0],p,cont))==-1)
+    // ar[1]: Ruta del archivo
+    // ar[2]: Dirección de memoria (convertida a puntero)
+    p=cadtop(ar[2]);  /*convertimos de cadena a puntero*/
+
+    // Si se proporciona ar[3], lo interpretamos como el tamaño a leer
+    if (ar[3]!=NULL)
+        cont= atoll(ar[3]);
+
+    if ((n=LeerFichero(ar[1],p,cont))==-1)
         perror ("Imposible leer fichero");
     else
-        printf ("leidos %lld bytes de %s en %p\n",(long long) n,ar[0],p);
+        printf ("leidos %lld bytes de %s en %p\n",(long long) n,ar[1],p);
 }
 
 //Escribe en un archivo desde una dirección de memoria específica
@@ -1449,11 +1439,66 @@ void command_writefile(char *pieces[]) {
         fprintf(stderr, "Advertencia: No se pudieron escribir todos los bytes\n");
     }
 
-    printf("Escritos %zd bytes en %s desde %p\n", written, filename, addr);
+    printf("Escritos %zd bytes en %s desde la dirección de memoria %p\n", written, filename, addr);
 
     close(fd);
 }
-void command_read(){}
+
+//Lee un archivo en una región de memoria específica
+ssize_t LeerDF (int df, void *p, ssize_t cont)
+{
+    struct stat s;
+    ssize_t  n;
+    // Obtener información del archivo si es necesario, es decir si queremos leerlo todo simplemente obtenemos el tamaño para leerlo todo
+    if (cont == -1) {
+        if (fstat(df, &s) == -1) {
+            perror("Error obteniendo información del archivo");
+            return -1;
+        }
+        cont = s.st_size;
+    }
+
+    if ((n=read(df,p,cont))==-1)
+        return -1;      //Se devuelve -1 porque no hemos podido leer el fichero
+
+    return n;
+}
+
+void command_read(char *ar[], OpenFileList *file_list) {
+    void *p;
+    ssize_t cont=-1;  /*si no pasamos tamano se lee entero */
+    ssize_t n;
+    int fd;
+
+    if (ar[1]==NULL || ar[2]==NULL){
+        printf ("faltan parametros\n");
+        return;
+    }
+
+    fd = (int)strtol(ar[1], NULL, 16);
+    // ar[1]: Ruta del archivo
+    // ar[2]: Dirección de memoria (convertida a puntero)
+    p = cadtop(ar[2]);  /*convertimos de cadena a puntero*/
+
+    if (findFile(fd,*file_list) == NULL) {
+        perror("fd no válido");
+        return;
+    }
+
+    // Si se proporciona ar[3], lo interpretamos como el tamaño a leer
+    if (ar[3]!=NULL) {
+        cont= atoll(ar[3]);
+        if (cont == 0) {
+            printf("Error: El tamaño a leer no puede ser 0\n");
+            return;
+        }
+    }
+
+    if ((n=LeerDF(fd,p,cont))==-1)
+        perror ("Imposible leer fichero");
+    else
+        printf ("leidos %lld bytes del descriptor %s en la %p\n",(long long) n,ar[1],p);
+}
 
 
 void command_write(char *pieces[]) {
@@ -1494,4 +1539,28 @@ void command_write(char *pieces[]) {
         printf("Escritos %zd bytes en el descriptor %d desde la direccion %p\n", written, fd, addr);
     }
 }
-void command_recurse(){}
+
+
+//Función recursiva que muestra la dirección de su parámetro
+void Recursiva (int n){
+    char automatico[TAMANO];          // Array automático (en la pila)
+    static char estatico[TAMANO];     // Array estático (en memoria estática)
+    /* Imprime:
+     * 1º: Valor del parámetro actual (`n`) de la llamada
+     * 2º: Dirección de la variable `n` (almacenada en la pila, cambia en cada llamada)
+     * 3º: Dirección del array `automatico` (local a cada llamada, por lo que cambia en cada iteración)
+     * 4º: Dirección del array `estatico` (compartida entre todas las llamadas, no cambia)
+     */
+    printf ("parametro:%3d(%p) array %p, arr estatico %p\n",n,&n,automatico, estatico);
+
+    if (n>0)
+        Recursiva(n - 1); // Llamada recursiva: reduce el valor de `n`
+        // Cada llamada agrega un nuevo marco a la pila, modificando las direcciones locales
+}
+
+void command_recurse(char *pieces[]) {
+    if (pieces[1] != NULL) {
+        int n = atoi(pieces[1]);
+        Recursiva(n);
+    }
+}

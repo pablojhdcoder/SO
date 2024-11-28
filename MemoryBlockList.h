@@ -7,6 +7,8 @@
 #include <stdbool.h>
 #include <time.h>
 #include <sys/types.h>
+#include <sys/mman.h>  // Para mmap()
+#include <sys/shm.h>
 
 #define BNULL NULL
 #define LENGTH_MAX_BLOCK 30
@@ -32,7 +34,6 @@ typedef struct {
 
 typedef struct tNodeB* tPosB;
 typedef tPosB MemoryBlockList;
-extern MemoryBlockList memoryList;  // Lista de bloques de memoria asignados
 
 struct tNodeB {
     tItemB data;

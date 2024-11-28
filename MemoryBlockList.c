@@ -144,15 +144,26 @@ void printEspecificBlocks(MemoryBlockList L, AllocationType type) {
     }
 }
 
-void cleanMemoryBlockList(MemoryBlockList *L)  {
+void cleanMemoryBlockList(MemoryBlockList *L) {
     tPosB p = BNULL;
     while (*L != BNULL) {
         p = *L;
         *L = (*L)->next;
-        if (p->data.fileName != BNULL) {
-            free(p->data.fileName);
-        }
+            switch (p->data.type) {
+                case MALLOC_MEMORY:
+                    free(p->data.address);
+                break;
+                case MAPPED_FILE:
+                    if(munmap(p->data.address,p->data.size) == -1) {
+                        perror("Error al desmapear el archivo");
+                    }
+                    free(p->data.fileName);
+                break;
+                case SHARED_MEMORY:
+                    if (shmdt(p->data.address) == -1)
+                        perror("Error al desvincular memoria compartida");
+                break;
+            }
         free(p);
     }
 }
-
