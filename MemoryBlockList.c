@@ -24,7 +24,7 @@ bool isEmptyListB(MemoryBlockList L) {
     return L == BNULL;
 }
 
-bool createNode(tPosB *p) {
+bool createNodeB(tPosB *p) {
     *p = malloc(sizeof(struct tNodeB));
     return *p != BNULL;
 }
@@ -33,7 +33,7 @@ tPosB firstB(MemoryBlockList L) {
     return L;
 }
 
-tPosB next(MemoryBlockList L) {
+tPosB nextB(MemoryBlockList L) {
     return L->next;
 }
 
@@ -46,7 +46,7 @@ tPosB lastPosB(MemoryBlockList L) {
     return p;
 }
 
-void getFormattedTime(char *buffer, size_t bufferSize) {
+void getFormattedTimeB(char *buffer, size_t bufferSize) {
     time_t currentTime = time(NULL);
     struct tm *localTime = localtime(&currentTime);
     strftime(buffer, bufferSize, "%b %d %H:%M:%S", localTime);
@@ -55,12 +55,12 @@ void getFormattedTime(char *buffer, size_t bufferSize) {
 //Ojo strdup en filename
 bool insertMemoryBlockB(MemoryBlockList *L, void *address, size_t size, AllocationType type, key_t Key, const char *fileName, int fileDescriptor) {
     tPosB p,q;
-    if(!createNode(&p)) {
+    if(!createNodeB(&p)) {
         return false;
     }
     p->data.address = address;
     p->data.size = size;
-    getFormattedTime(p->data.allocationTime, sizeof(p->data.allocationTime));
+    getFormattedTimeB(p->data.allocationTime, sizeof(p->data.allocationTime));
     p->data.type = type;
     p->data.smKey = (type == SHARED_MEMORY) ? Key : -1;
     p->data.fileName = (type == MAPPED_FILE && fileName != BNULL) ? strdup(fileName) : BNULL;     //strdup asigna dinámicamente suficiente memoria para almacenar una copia de la cadena dada,Copia la cadena en la nueva memoria asignada. Devuelve un puntero a la nueva cadena duplicada, cuando se borre el elemento acordarse de hacer free(fileName)
@@ -167,3 +167,4 @@ void cleanMemoryBlockList(MemoryBlockList *L) {
         free(p);
     }
 }
+

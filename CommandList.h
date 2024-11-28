@@ -10,7 +10,7 @@
 #define LENGTH_MAX_NAME 30     //Longitud máxima del nombre de un comando
 #define LENGTH_MAX_DESCRIPTION 400  //Longitud máxima de la descripción de un comando
 
-#define LENGTH_MAX_LIST 40  //Lista de 30 punteros a structs
+#define LENGTH_MAX_LIST 50  //Actualmente hay 49 comandos, entonces 50 nos llega como tamaño
 #define CNULL (-1)   //Valor nulo para la lista de comandos
 
 typedef int tPosC;     //Definimos tPosC como un alias de tipo int para manejar posiciones en la lista de comandos

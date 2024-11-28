@@ -8,6 +8,8 @@
 #include <string.h>
 #include <fcntl.h>
 
+#include "Processes.h"
+
 //Función que imprime el prompt
 void printPrompt(){
     printf("→ ");
@@ -24,13 +26,14 @@ static void AddStandardFileDescriptorsToOpenFileList(OpenFileList *L) {
     }
 }
 
-void InitializateShellLists (CommandListC *c, HistoryList *h, OpenFileList *f, MemoryBlockList *b) {
+void InitializateShellLists (CommandListC *c, HistoryList *h, OpenFileList *f, MemoryBlockList *b, ProcessList *p) {
     createEmptyListC(c);
     InsertPredefinedCommands(c);
     createEmptyListH(h);
     createEmptyListF(f);
     AddStandardFileDescriptorsToOpenFileList(f);
     createEmptyListB(b);
+    createEmptyListP(p);
 }
 
 //Función auxiliar para dividir una cadena en palabras
@@ -50,7 +53,7 @@ static void AddToHistoryList(tItemH *command, HistoryList *lista){
 }
 
 //Función auxiliar para leer la entrada introducida por el usuario
-void readInput(bool *finished, CommandListC *commandList, HistoryList *history, OpenFileList *openFileList, MemoryBlockList *memoryBlockList) {
+void readInput(bool *finished, CommandListC *commandList, HistoryList *history, OpenFileList *openFileList, MemoryBlockList *memoryBlockList,ProcessList *processList) {
     char input[LENGTH_MAX_INPUT];  //Buffer para almacenar la entrada del usuario
 
     if (fgets(input, LENGTH_MAX_INPUT, stdin) != NULL) {  //Lee la entrada del usuario desde la consola
@@ -66,106 +69,92 @@ void readInput(bool *finished, CommandListC *commandList, HistoryList *history, 
         int NumTrozos = SplitString(input, trozos);  //Divide la cadena en trozos (palabras) y devuelve el número de trozos
 
         if (NumTrozos > 0) {  //Si se han encontrado trozos, procesa la entrada
-            processInput(finished, &cadena, trozos, commandList, history, openFileList, memoryBlockList);  //Procesa la entrada
+            processInput(finished, &cadena, trozos, commandList, history, openFileList, memoryBlockList, processList);  //Procesa la entrada
         }
     } else {
         perror("Error al leer la entrada");  //Imprime un mensaje de error si la lectura falla
     }
 }
-//Debería de poner los comandos aquí en una función que los devuelva con sus descripciones y luego inicializar la lista de comandos con una función del TAD?
 void InsertPredefinedCommands(CommandListC *commandList) {
-   const char *Names[] = {
+    const char *Names[] = {
         "authors", "pid", "ppid", "cd", "date",
         "historic", "open", "close", "dup", "infosys",
-        "makefile", "makedir","cwd", "listfile", "listdir",
+        "makefile", "makedir", "cwd", "listfile", "listdir",
         "reclist", "revlist", "erase", "delrec",
-        "allocate","deallocate", "memfill","memdump",
+        "allocate", "deallocate", "memfill", "memdump",
         "memory", "readfile", "writefile", "read",
-        "write", "recurse","help", "quit", "exit", "bye"
+        "write", "recurse", "getuid", "setuid", "showvar",
+        "changevar", "subsvar", "environ", "fork", "search",
+        "exec", "execpri", "fg", "fgpri", "back", "backpri",
+        "listjobs", "deljobs", "help", "quit", "exit", "bye"
     };
+
     const char *Descriptions[] = {
         " [-n|-l] Muestra los nombres y/o logins de los autores",
         " [-p] Muestra el pid del shell o de su proceso padre",
         " Muestra el pid del proceso padre del shell",
-        " [dir]	Cambia (o muestra) el directorio actual del shell",
+        " [dir] Cambia (o muestra) el directorio actual del shell",
         " [-d|-t] Muestra la fecha y/o la hora actual",
-        " [-c|-N|N]	Muestra (o borra)el historico de comandos \n"
+        " [-c|-N|N] Muestra (o borra) el historico de comandos \n"
         "\t-N: muestra los N primeros \n"
         "\t-c: borra el historico \n"
         "\tN: repite el comando N",
-        " fich m1 m2...	Abre el fichero fich y lo anade a la lista de ficheros abiertos del shell \n"
-        "\tm1, m2..es el modo de apertura (or bit a bit de los siguientes) \n"
-        "\tcr: O_CREAT	ap: O_APPEND \n"
-        "\tex: O_EXCL 	ro: O_RDONLY \n"
-        "\trw: O_RDWR 	wo: O_WRONLY \n"
-        "\ttr: O_TRUNC ",
+        " fich m1 m2... Abre el fichero fich y lo anade a la lista de ficheros abiertos del shell",
         " df Cierra el descriptor df y elimina el correspondiente fichero de la lista de ficheros abiertos",
         " df Duplica el descriptor de fichero df y anade una nueva entrada a la lista ficheros abiertos",
         " Muestra informacion de la maquina donde corre el shell",
         " [name] Crea un fichero de nombre name",
         " [name] Crea un directorio de nombre name",
-        "Muestra el directorio actual del shell",
-        " [-long][-link][-acc] name1 name2 ..	lista ficheros; \n"
-        "\t-long: listado largo \n"
-        "\t-acc: acesstime \n"
-        "\t-link: si es enlace simbolico, el path contenido ",
-        " [-hid][-long][-link][-acc] n1 n2 .. lista contenidos de directorios \n"
-        "\t-long: listado largo \n"
-        "\t-hid: incluye los ficheros ocultos \n"
-        "\t-acc: acesstime \n"
-        "\t-link: si es enlace simbolico, el path contenido",
-        " [-hid][-long][-link][-acc] n1 n2 .. lista recursivamente contenidos de directorios (subdirs despues) \n"
-        "\t-hid: incluye los ficheros ocultos \n"
-        "\t-long: listado largo \n"
-        "\t-acc: acesstime \n"
-        "\t-link: si es enlace simbolico, el path contenido",
-        " [-hid][-long][-link][-acc] n1 n2 .. lista recursivamente contenidos de directorios (subdirs antes) \n"
-        "\t-hid: incluye los ficheros ocultos \n"
-        "\t-long: listado largo \n"
-        "\t-acc: acesstime \n"
-        "\t-link: si es enlace simbolico, el path contenido ",
-        " [name1 name2 ..] Borra ficheros o directorios vacios",
-        " [name1 name2 ..] Borra ficheros o directorios no vacios recursivamente",
-        " [-malloc|-shared|-createshared|-mmap]... Asigna un bloque de memoria \n"
-        "\t-malloc tam: asigna un bloque malloc de tamano tam \n"
-        "\tcreateshared cl tam: asigna (creando) el bloque de memoria compartida de clave cl y tamano tam \n"
-        "\t-shared cl: asigna el bloque de memoria compartida (ya existente) de clave cl"
-        "\t-mmap fich perm: mapea el fichero fich, perm son los permisos",
-        " [-malloc|-shared|-delkey|-mmap|addr]..	Desasigna un bloque de memoria \n"
-        "\t-malloc tam: desasigna el bloque malloc de tamano tam \n"
-        "\t-shared cl: desasigna (desmapea) el bloque de memoria compartida de clave cl \n"
-        "\t-delkey cl: elimina del sistema (sin desmapear) la clave de memoria cl \n"
-        "\t-mmap fich: desmapea el fichero mapeado fich \n"
-        "\taddr: desasigna el bloque de memoria en la direccion addr",
+        " Muestra el directorio actual del shell",
+        " [-long][-link][-acc] name1 name2... Lista ficheros",
+        " [-hid][-long][-link][-acc] n1 n2... Lista contenidos de directorios",
+        " [-hid][-long][-link][-acc] n1 n2... Lista recursivamente contenidos de directorios (subdirs despues)",
+        " [-hid][-long][-link][-acc] n1 n2... Lista recursivamente contenidos de directorios (subdirs antes)",
+        " [name1 name2...] Borra ficheros o directorios vacios",
+        " [name1 name2...] Borra ficheros o directorios no vacios recursivamente",
+        " [-malloc|-shared|-createshared|-mmap]... Asigna un bloque de memoria",
+        " [-malloc|-shared|-delkey|-mmap|addr]... Desasigna un bloque de memoria",
         " addr cont byte Llena la memoria a partir de addr con byte",
-        " addr cont Vuelca en pantallas los contenidos (cont bytes) de la posicion de memoria addr",
-        " [-blocks|-funcs|-vars|-all|-pmap] ..	Muestra muestra detalles de la memoria del proceso \n"
-        "\t-blocks: los bloques de memoria asignados \n"
-        "\t-funcs: las direcciones de las funciones \n"
-        "\t-vars: las direcciones de las variables \n"
-        "\t:-all: todo \n"
-        "\t-pmap: muestra la salida del comando pmap(o similar)",
-        " fiche addr cont 	Lee cont bytes desde fich a la direccion addr",
-        " [-o] fiche addr cont 	Escribe cont bytes desde la direccion addr a fich (-o sobreescribe)",
-        " df addr cont	Transfiere cont bytes del fichero descrito por df a la dirección addr",
-        " df addr cont	Transfiere cont bytes desde la dirección addr al fichero descrito por df",
-        " [n]	Invoca a la funcion recursiva n veces",
-        " [cmd|-all] Muestra ayuda sobre los comandos \n"
-        "\t-cmd: info sobre el comando cmd \n"
-        "\t-all: lista todos los comandos con su información ",
+        " addr cont Vuelca en pantalla los contenidos (cont bytes) de la posicion de memoria addr",
+        " [-blocks|-funcs|-vars|-all|-pmap]... Muestra detalles de la memoria del proceso",
+        " fiche addr cont Lee cont bytes desde fich a la direccion addr",
+        " [-o] fiche addr cont Escribe cont bytes desde la direccion addr a fich",
+        " df addr cont Transfiere cont bytes del fichero descrito por df a la direccion addr",
+        " df addr cont Transfiere cont bytes desde la direccion addr al fichero descrito por df",
+        " [n] Invoca a la funcion recursiva n veces",
+        " Muestra las credenciales del proceso que ejecuta el shell",
+        " [-l] id Cambia las credenciales del proceso que ejecuta el shell",
+        " var Muestra el valor y las direcciones de la variable de entorno var",
+        " [-a|-e|-p] var valor Cambia el valor de una variable de entorno",
+        " [-a|-e] var1 var2 valor Sustituye la variable de entorno var1",
+        " [-environ|-addr] Muestra el entorno del proceso",
+        " El shell hace fork y queda en espera a que su hijo termine",
+        " [-add|-del|-clear|-path]... Manipula o muestra la ruta de busqueda del shell",
+        " VAR1 VAR2... prog args... Ejecuta, sin crear proceso, prog con argumentos",
+        " prio prog args... Ejecuta, sin crear proceso, prog con prioridad cambiada",
+        " prog args... Crea un proceso que ejecuta en primer plano prog con argumentos",
+        " prio prog args... Crea un proceso que ejecuta en primer plano prog con prioridad cambiada",
+        " prog args... Crea un proceso que ejecuta en segundo plano prog con argumentos",
+        " prio prog args... Crea un proceso que ejecuta en segundo plano prog con prioridad cambiada",
+        " Lista los procesos en segundo plano",
+        " [-term][-sig] Elimina los procesos de la lista de procesos en segundo plano",
+        " [cmd|-all] Muestra ayuda sobre los comandos",
         " Termina la ejecucion del shell",
         " Termina la ejecucion del shell",
         " Termina la ejecucion del shell"
     };
 
-    // Obtenemos el numero total de comandos dividiendo el tamaño total entre el tamaño de un comando
-    int NumComandos = sizeof(Names) / sizeof(Names[0]);
+    // Calculamos la longitud de ambas listas
+    int NumNames = sizeof(Names) / sizeof(Names[0]);
+
     // Copiamos los valores en el struct CommandList
-    for (int i = 0; i < NumComandos; i++) {
-        if (!insertCommandC(commandList,Names[i],Descriptions[i],i))
-            perror ("Error insertando los comandos predefinidos");
+    for (int i = 0; i < NumNames; i++) {
+        if (!insertCommandC(commandList, Names[i], Descriptions[i], i)) {
+            fprintf(stderr, "Error al insertar el comando '%s'\n", Names[i]);
+        }
     }
 }
+
 
 
 //Obtenemos el ID del comando para luego poder elegir en el switch, además aprovechamos y guardamos en el historial
@@ -178,7 +167,7 @@ static int getCommandId(tItemH *str, char *pieces[], CommandListC *commandList, 
     return -1;                                      //Si el comando no es válido, retorna -1
 }
 //Procesa el comando introducido //Se puede hacer privada??
-void processInput(bool *finished,tItemH *str,char *pieces[], CommandListC *commandList, HistoryList *history,OpenFileList *fileList, MemoryBlockList *memoryBlockList){
+void processInput(bool *finished,tItemH *str,char *pieces[], CommandListC *commandList, HistoryList *history,OpenFileList *fileList, MemoryBlockList *memoryBlockList, ProcessList *processList){
     switch (getCommandId(str,pieces,commandList,history)) {
         case 0:
             command_authors(pieces);
@@ -196,7 +185,7 @@ void processInput(bool *finished,tItemH *str,char *pieces[], CommandListC *comma
             command_date(pieces);
             break;
         case 5:
-            command_historic(pieces,finished,commandList,history,fileList,memoryBlockList);
+            command_historic(pieces,finished,commandList,history,fileList,memoryBlockList, processList);
             break;
         case 6:
             command_open(pieces,fileList);
@@ -266,12 +255,60 @@ void processInput(bool *finished,tItemH *str,char *pieces[], CommandListC *comma
             command_recurse(pieces);
             break;
         case 29:
-            command_help(pieces,commandList);
+            command_getuid();
             break;
         case 30:
+            command_setuid(pieces);
+            break;
         case 31:
+            //command_showvar();
+            break;
         case 32:
-        command_exit(finished,fileList,history,commandList, memoryBlockList);
+            //command_changevar();
+            break;
+        case 33:
+            //command_subsvar();
+            break;
+        case 34:
+            //command_environ();
+            break;
+        case 35:
+            //command_fork();
+            break;
+        case 36:
+            //command_search();
+            break;
+        case 37:
+            //command_exec();
+            break;
+        case 38:
+            //command_execpri();
+            break;
+        case 39:
+            //command_fg();
+            break;
+        case 40:
+            //command_fgpri();
+            break;
+        case 41:
+            //command_back();
+            break;
+        case 42:
+            //command_backpri();
+            break;
+        case 43:
+            //command_listjobs();
+            break;
+        case 44:
+            //command_deljobs();
+            break;
+        case 45:
+            command_help(pieces,commandList);
+            break;
+        case 46:
+        case 47:
+        case 48:
+            command_exit(finished,fileList,history,commandList, memoryBlockList);
             break;
         default:
             perror("Comando no válido, introduce \"help\" para ver los disponibles");

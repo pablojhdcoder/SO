@@ -19,12 +19,12 @@
 #include <sys/shm.h>  // Para shmget(), shmat(), shmdt(), shmctl()
 #include <sys/wait.h>  // Para waitpid()
 #include <ctype.h>   // Para isdigit()
-#include <sys/resource.h> // Para getpriority()
 
 #include "CommandList.h"
 #include "HistoryList.h"
 #include "FileList.h"
 #include "MemoryBlockList.h"
+#include "Processes.h"
 #include "Functions.h"
 
 #define LENGTH_MAX_INPUT 512  //Longitud máxima de la entrada del usuario
@@ -40,7 +40,7 @@ void command_pid();
 void command_ppid();
 void command_cd(char *pieces[]);
 void command_date(char *pieces[]);
-void command_historic (char *pieces[],bool *finished,CommandListC *commandList, HistoryList *history, OpenFileList *openFileList, MemoryBlockList *memoryBlockList);
+void command_historic (char *pieces[],bool *finished,CommandListC *commandList, HistoryList *history, OpenFileList *openFileList, MemoryBlockList *memoryBlockList, ProcessList *processList);
 void command_open(char *pieces[],OpenFileList *openFileList);
 void command_close(char *pieces[],OpenFileList *openFileList);
 void command_dup(char *pieces[], OpenFileList *openFileList);
@@ -67,6 +67,10 @@ void command_writefile(char *pieces[]);
 void command_read(char *ar[], OpenFileList *file_list);
 void command_write(char *pieces[]);
 void command_recurse(char *pieces[]);
+
+void command_getuid();
+void command_setuid(char *pieces[]);
+
 
 
 #endif //COMMANDS_H

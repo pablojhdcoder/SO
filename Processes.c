@@ -8,7 +8,7 @@ bool isEmptyListP(ProcessList P) {
     return P == PNULL;
 }
 
-bool createNode(tPosP *p) {
+bool createNodeP(tPosP *p) {
     *p = malloc(sizeof(struct tNodeP));
     return *p != PNULL;
 }
@@ -17,7 +17,7 @@ tPosP firstP(ProcessList P) {
     return P;
 }
 
-tPosP next(tPosP p) {
+tPosP nextP(tPosP p) {
     return p->next;
 }
 
@@ -30,7 +30,7 @@ tPosP lastPosP(ProcessList P) {
     return p;
 }
 
-void getFormattedTime(char *buffer, size_t bufferSize) {
+void getFormattedTimeP(char *buffer, size_t bufferSize) {
     time_t currentTime = time(NULL);
     struct tm *localTime = localtime(&currentTime);
     strftime(buffer, bufferSize, "%Y-%m-%d %H:%M:%S", localTime);
@@ -38,11 +38,11 @@ void getFormattedTime(char *buffer, size_t bufferSize) {
 
 bool addProcess(ProcessList *P, pid_t pid, const char *commandLine) {
     tPosP p, q;
-    if (!createNode(&p)) {
+    if (!createNodeP(&p)) {
         return false;
     }
     p->data.pid = pid;
-    getFormattedTime(p->data.launchTime, sizeof(p->data.launchTime));
+    getFormattedTimeP(p->data.launchTime, sizeof(p->data.launchTime));
     p->data.status = ACTIVE;
     p->data.returnValue = 0;
     strncpy(p->data.commandLine, commandLine, sizeof(p->data.commandLine) - 1);

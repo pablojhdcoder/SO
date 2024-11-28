@@ -17,10 +17,11 @@ int main(void) {
     HistoryList historyList;  //Lista que almacena el historial de comandos ejecutados.
     OpenFileList openFileList;  //Lista que gestiona los archivos abiertos.
     MemoryBlockList memoryBlockList;
-    InitializateShellLists(&cmdList,&historyList,&openFileList,&memoryBlockList);
+    ProcessList processList;
+    InitializateShellLists(&cmdList,&historyList,&openFileList,&memoryBlockList, &processList);
     while (!finished) {  //Bucle principal que se ejecuta mientras el programa no haya finalizado.
         printPrompt();  //Imprime el prompt para que el usuario ingrese un comando.
-        readInput(&finished, &cmdList, &historyList, &openFileList, &memoryBlockList);  //Lee la entrada del usuario y procesa el comando.
+        readInput(&finished, &cmdList, &historyList, &openFileList, &memoryBlockList, &processList);  //Lee la entrada del usuario y procesa el comando.
     }
 
     return 0;  //Fin de la función.

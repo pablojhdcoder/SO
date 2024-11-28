@@ -73,18 +73,18 @@ void command_date(char *pieces[]) {
 }
 
 //Función auxiliar para repetir un comando guardado en el historial
-static void repeatCommand(tPosH p,bool *finished, CommandListC *commandList, HistoryList *history, OpenFileList *openFileList, MemoryBlockList *memoryBlockList) {
+static void repeatCommand(tPosH p,bool *finished, CommandListC *commandList, HistoryList *history, OpenFileList *openFileList, MemoryBlockList *memoryBlockList, ProcessList *processList) {
     char *trozos[LENGTH_MAX_PHRASE];
     tItemH cadena;                                                          //Cadena que almacena el comando a repetir
     tItemH *comando = getItemH(p, history);                                 //Obtiene el comando a repetir
     printf("Ejecutando historic (%d): %s\n",p,*comando);
     strcpy(cadena,*comando);                                                //Copia el comando a cadena
     SplitString(*comando,trozos);                                           //Separa el comando en trozos
-    processInput(finished,&cadena,trozos,commandList,history,openFileList, memoryBlockList); //Procesa el comando
+    processInput(finished,&cadena,trozos,commandList,history,openFileList, memoryBlockList, processList); //Procesa el comando
 }
 
 //Mustra el historial de comandos introducidos, o repite un comando ya introducido o imprimer los últimos n comandos
-void command_historic (char *pieces[],bool *finished,CommandListC *commandList, HistoryList *history, OpenFileList *openFileList, MemoryBlockList *memoryBlockList) {
+void command_historic (char *pieces[],bool *finished,CommandListC *commandList, HistoryList *history, OpenFileList *openFileList, MemoryBlockList *memoryBlockList, ProcessList *processList) {
     char *NoValidCharacter;
 
     //Si se proporciona un argumento numérico
@@ -94,7 +94,7 @@ void command_historic (char *pieces[],bool *finished,CommandListC *commandList, 
 
         if(*NoValidCharacter == '\0') {                                     //Si todo el argumento es un número válido, entonces el puntero NoValidCharacter apuntará al \0, strtol convirtió la cadena exitosamente
             if (0 <= number && number <= lastH(*history)) {
-                repeatCommand(number,finished,commandList,history,openFileList, memoryBlockList);
+                repeatCommand(number,finished,commandList,history,openFileList, memoryBlockList, processList);
             }else if (number < 0) {
                 number = -number;               //Cambiar el signo
                 printLastNH(history,number);    //Imprime los últimos n comandos
@@ -106,7 +106,7 @@ void command_historic (char *pieces[],bool *finished,CommandListC *commandList, 
             fprintf(stderr,"Parte de la cadena no es válida: %s\n", NoValidCharacter);
             printf("Parte numérica leída: %d\n", number);   //Se coge la parte que se ha leído exitosamente
             if (0 <= number && number <= lastH(*history)) {
-                repeatCommand(number,finished,commandList,history,openFileList, memoryBlockList);
+                repeatCommand(number,finished,commandList,history,openFileList, memoryBlockList, processList);
             }else if (number < 0) {
                 number = -number;                  //Cambiar el signo
                 printLastNH(history,number);       //Imprime los últimos n comandos
@@ -817,7 +817,7 @@ void command_delrec(char *pieces[]) {
 }
 
 //función asigna memoria compartida
-void * ObtenerMemoriaShmget (key_t clave, size_t tam){
+static void * ObtenerMemoriaShmget (key_t clave, size_t tam){
     void * p;
     int aux,id,flags=0777;
     struct shmid_ds s;
@@ -842,7 +842,7 @@ void * ObtenerMemoriaShmget (key_t clave, size_t tam){
 
 
 //función gestiona la asignación de memoria compartida
-void do_AllocateCreateshared(char *pieces[], MemoryBlockList *memoryBlockList) {
+static void do_AllocateCreateshared(char *pieces[], MemoryBlockList *memoryBlockList) {
     if (pieces[0] == NULL) {
         // Caso 1: "allocate -createshared"
         printEspecificBlocks(*memoryBlockList, SHARED_MEMORY);
@@ -878,7 +878,7 @@ void do_AllocateCreateshared(char *pieces[], MemoryBlockList *memoryBlockList) {
 }
 
 //función intenta asignar un segmento de memoria compartida existente
-void do_AllocateShared(char *pieces[], MemoryBlockList *memoryBlockList) {
+static void do_AllocateShared(char *pieces[], MemoryBlockList *memoryBlockList) {
     key_t cl;
     void *p;
 
@@ -904,7 +904,7 @@ void do_AllocateShared(char *pieces[], MemoryBlockList *memoryBlockList) {
 }
 
 //función mapea un archivo en la memoria del proceso usando mmap
-void * MapearFichero (char * fichero, int protection, OpenFileList *openFileList, MemoryBlockList *memoryBlockList){
+static void * MapearFichero (char * fichero, int protection, OpenFileList *openFileList, MemoryBlockList *memoryBlockList){
     int df, map=MAP_PRIVATE,modo=O_RDONLY;
     struct stat s;
     void *p;
@@ -929,7 +929,7 @@ void * MapearFichero (char * fichero, int protection, OpenFileList *openFileList
     return p;
 }
 //Función llama a MapearFichero para mapear un archivo
-void do_AllocateMmap(char *pieces[], MemoryBlockList *memoryBlockList, OpenFileList *openFileList)
+static void do_AllocateMmap(char *pieces[], MemoryBlockList *memoryBlockList, OpenFileList *openFileList)
 {
     char *perm;
     void *p;
@@ -1019,7 +1019,7 @@ static void do_DeallocateMalloc(char *args[], MemoryBlockList *memblocks) {
                     if (p->data.type == MALLOC_MEMORY && p->data.size == n) {
                         break; // Encontramos el bloque
                     }
-                    p = next(p);
+                    p = nextB(p);
                 }
                 if(p == BNULL) {
                     printf("No hay bloque de ese tamaño asignado con malloc\n");
@@ -1047,8 +1047,15 @@ static void do_DeallocateMmap (char *args[],MemoryBlockList *memblocks) {
             if (p->data.type == MAPPED_FILE && strcmp(args[0],p->data.fileName) == 0){
                 break; // Encontramos el bloque
             }
-            p = next(p);
+            p = nextB(p);
         }
+
+        // Verificar si se encontró el bloque, sino imprimimos error y salimos para no pasarle un puntero nulo a munmap
+        if (p == BNULL) {
+            fprintf(stderr,"Fichero %s no mapeado\n", args[0]);
+            return;
+        }
+
         if(munmap(p->data.address,p->data.size) == -1) {
             perror("Error al desmapear el archivo");
         }
@@ -1075,7 +1082,7 @@ static void do_DeallocateShared (char *args[], MemoryBlockList *memblocks) {
         if (p->data.type == SHARED_MEMORY && p->data.smKey == clave) {
             break; // Encontramos el bloque
         }
-        p = next(p);
+        p = nextB(p);
     }
     if (p == BNULL) {
         printf("No hay bloque de memoria compartida con la clave %d\n", clave);
@@ -1111,20 +1118,31 @@ static void do_DeallocateDelkey (char *args[]){
         perror ("shmctl: imposible eliminar memoria compartida\n");
 }
 
+//Convierte la cadena a un número hexadecimal
+void *cadtop(char *cadena) {
+    //strtoull de la biblioteca estándar de C para convertir la cadena hexadecimal a un número sin signo de 64 bits
+    //(unsigned long long int).
+    unsigned long long int direccion = strtoull(cadena, NULL, 16); //16 indica la base hexadecimal.
+    //Luego, ese número se interpreta como una dirección de memoria y se convierte en un puntero.
+    return (void *)direccion;
+}
+
 static void do_DeallocateAdd (char *args[], MemoryBlockList *memblocks) {
+    void *addr = cadtop(args[0]);  // Convertir la dirección de memoria de cadena a puntero
     tPosB p = firstB(*memblocks);
+
     while (p != BNULL) {
-        if (p->data.address == args[0]) {
+        if (p->data.address == addr) {
             break; // Encontramos el bloque
         }
-        p = next(p);
+        p = nextB(p);
     }
     if (p == BNULL) {
-        fprintf(stderr,"Direccion %p no asignada con malloc, shared o mmap",args[0]);
+        fprintf(stderr,"Direccion %p no asignada con malloc, shared o mmap\n",args[0]);
     }else {
         switch (p->data.type) {
             case MALLOC_MEMORY:
-                free(args[0]);
+                free(addr);
                 break;
             case SHARED_MEMORY:
                 if (shmdt(p->data.address) == -1)
@@ -1174,15 +1192,6 @@ void command_deallocate(char *pieces[],MemoryBlockList *memblocks) {
         printAllBlocks(*memblocks);
 }
 
-
-//Convierte la cadena a un número hexadecimal
-void *cadtop(char *cadena) {
-    //strtoull de la biblioteca estándar de C para convertir la cadena hexadecimal a un número sin signo de 64 bits
-    //(unsigned long long int).
-    unsigned long long int direccion = strtoull(cadena, NULL, 16); //16 indica la base hexadecimal.
-    //Luego, ese número se interpreta como una dirección de memoria y se convierte en un puntero.
-    return (void *)direccion;
-}
 
 //Llena una región de memoria con un valor específico
 void LlenarMemoria (void *p, size_t cont, unsigned char byte){
@@ -1235,18 +1244,19 @@ void command_memdump(char *pieces[]) {
         }else {
             cont = 25;  //Tamaño a volcar predeterminado (25 bytes)
         }
-        printf("Volcando %lu bytes desde la direccion %p",cont,addr);
+        printf("Volcando %lu bytes desde la direccion %p\n",cont,addr);
         // Volcamos los contenidos de memoria en bloques de 16 bytes
         for(i = 0; i < cont; i+=25) {
+            printf(" ");  // Espaciado inicial para alineación
 
             // Imprimir los caracteres imprimibles correspondientes a los bytes
             for (j = 0; j < 25 && i + j < cont; ++j) {
                 unsigned char byte = byte_ptr[i + j];
                 // Si el byte es imprimible, lo mostramos; de lo contrario, mostramos '.'
-                printf("%c ", isprint(byte) ? byte : '.');
+                printf(" %c ", isprint(byte) ? byte : '.');
             }
             printf("\n");
-
+            printf(" ");
             for(j = 0; j < 25 && i + j < cont; j++) {
                 printf("%02x ", byte_ptr[i + j]);
             }
@@ -1435,13 +1445,12 @@ void command_writefile(char *pieces[]) {
 }
 
 //Lee un archivo en una región de memoria específica
-ssize_t LeerDF (int df, void *p, size_t cont)
+ssize_t LeerDF (int df, void *p, ssize_t cont)
 {
     struct stat s;
     ssize_t  n;
-
     // Obtener información del archivo si es necesario, es decir si queremos leerlo todo simplemente obtenemos el tamaño para leerlo todo
-    if (cont == (size_t)-1) {
+    if (cont == -1) {
         if (fstat(df, &s) == -1) {
             perror("Error obteniendo información del archivo");
             return -1;
@@ -1457,7 +1466,7 @@ ssize_t LeerDF (int df, void *p, size_t cont)
 
 void command_read(char *ar[], OpenFileList *file_list) {
     void *p;
-    size_t cont=-1;  /*si no pasamos tamano se lee entero */
+    ssize_t cont=-1;  /*si no pasamos tamano se lee entero */
     ssize_t n;
     int fd;
 
@@ -1478,7 +1487,7 @@ void command_read(char *ar[], OpenFileList *file_list) {
 
     // Si se proporciona ar[3], lo interpretamos como el tamaño a leer
     if (ar[3]!=NULL) {
-        cont=(size_t) atoll(ar[3]);
+        cont= atoll(ar[3]);
         if (cont == 0) {
             printf("Error: El tamaño a leer no puede ser 0\n");
             return;
@@ -1488,7 +1497,7 @@ void command_read(char *ar[], OpenFileList *file_list) {
     if ((n=LeerDF(fd,p,cont))==-1)
         perror ("Imposible leer fichero");
     else
-        printf ("leidos %lld bytes de %s en %p\n",(long long) n,ar[1],p);
+        printf ("leidos %lld bytes del descriptor %s en la %p\n",(long long) n,ar[1],p);
 }
 
 
@@ -1534,7 +1543,7 @@ void command_write(char *pieces[]) {
 
 //Función recursiva que muestra la dirección de su parámetro
 void Recursiva (int n){
-    char automatico[TAMANO];          // Array automático (en la pila)
+        char automatico[TAMANO];          // Array automático (en la pila)
     static char estatico[TAMANO];     // Array estático (en memoria estática)
     /* Imprime:
      * 1º: Valor del parámetro actual (`n`) de la llamada
@@ -1555,3 +1564,84 @@ void command_recurse(char *pieces[]) {
         Recursiva(n);
     }
 }
+
+void command_getuid() {
+    uid_t real_uid = getuid();   // UID real
+    uid_t effective_uid = geteuid(); // UID efectivo
+
+    // Obtener el nombre del usuario a partir de los UID
+    struct passwd *real_pw = getpwuid(real_uid);
+    struct passwd *effective_pw = getpwuid(effective_uid);
+
+    // Mostrar credenciales reales
+    if (real_pw) {
+        printf("Credencial real: %d, (%s)\n", real_uid, real_pw->pw_name);
+    } else {
+        printf("Credencial real: %d, (desconocido)\n", real_uid);
+    }
+
+    // Mostrar credenciales efectivas
+    if (effective_pw) {
+        printf("Credencial efectiva: %d, (%s)\n", effective_uid, effective_pw->pw_name);
+    } else {
+        printf("Credencial efectiva: %d, (desconocido)\n", effective_uid);
+    }
+}
+
+static long int getID(char *id) {
+    char *NoValidCharacter;
+    const long int n = strtol(id,&NoValidCharacter,10);     //Variable para almacenar el número si lo hay
+
+    if(NoValidCharacter == id) {              //Si todo el argumento es un número válido, entonces el puntero NoValidCharacter apuntará al \0, strtol convirtió la cadena exitosamente
+        perror("No se introdujo ningún número válido");                    //Si no se introdujo ningún número válido el puntero apuntará a la primera posición de pieces[1],
+        return -1;
+    }
+    if (*NoValidCharacter != '\0') {
+        fprintf(stderr,"Parte de la cadena no es válida: %s\n", NoValidCharacter);      //Se han introducido carácteres válidos antes de que el puntero apunte a uno no válido
+        printf("Parte numérica leída: %li\n", n);
+    }
+    return n;
+}
+
+//Cambiar el UID solo es posible para el superusuario (root) o para ciertos procesos con permisos especiales.
+//Por ello probar con su cuando se añada la opcion de exec
+void command_setuid(char *pieces[]) {
+    if (pieces[1] != NULL) {
+        if (strcmp(pieces[1], "-l") == 0) {
+            if (pieces[2] != NULL) {
+                // Opción -l: cambiar credencial usando un nombre de usuario
+                struct passwd *pw = getpwnam(pieces[2]);
+                if (pw == NULL) {
+                    fprintf(stderr,"Usuario %s no encontrado\n", pieces[2]);      //Se han introducido carácteres válidos antes de que el puntero apunte a uno no válido
+                    return;
+                }
+                if (setuid(pw->pw_uid) == 0) {
+                    printf("UID cambiado exitosamente a %d (%s)\n", pw->pw_uid, pieces[2]);
+                }else {
+                    perror("Error al cambiar UID");
+                }
+            }else
+                command_getuid();
+        }else{
+            long int uid = getID(pieces[1]);
+            if (uid == -1) {
+                fprintf(stderr, "UID inválido: %s\n", pieces[1]);
+                return;
+            }
+            if (setuid((uid_t)uid) == 0) {
+                printf("UID cambiado exitosamente a %ld\n", uid);
+            } else {
+                perror("Error al cambiar UID");
+            }
+        }
+    }else {
+        command_getuid();
+    }
+}
+
+
+
+
+
+
+

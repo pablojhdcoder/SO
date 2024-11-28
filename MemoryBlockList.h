@@ -43,9 +43,8 @@ struct tNodeB {
 
 void createEmptyListB(MemoryBlockList *L);
 bool isEmptyListB(MemoryBlockList L);
-bool createNode(tPosB *p);
 tPosB firstB(MemoryBlockList L);
-tPosB next(MemoryBlockList L);
+tPosB nextB(MemoryBlockList L);
 tPosB lastPosB(MemoryBlockList L);
 bool insertMemoryBlockB(MemoryBlockList *L, void *address, size_t size, AllocationType type, key_t Key, const char *fileName, int fileDescriptor);
 void removeMemoryBlock(MemoryBlockList *L, tPosB pos);

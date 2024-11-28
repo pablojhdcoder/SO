@@ -1,7 +1,14 @@
 #ifndef PROCESSES_H
 #define PROCESSES_H
 
-#include "Commands.h"
+#include <stdio.h>
+#include <stdbool.h>
+#include <string.h>
+#include <stdlib.h>
+#include <time.h>
+#include <sys/wait.h>  // Para waitpid()
+#include <ctype.h>   // Para isdigit()
+#include <sys/resource.h> // Para getpriority()
 
 #define PNULL NULL
 
@@ -30,9 +37,8 @@ struct tNodeP {
 
 void createEmptyListP(ProcessList *P);
 bool isEmptyListP(ProcessList P);
-bool createNode(tPosP *p);
 tPosP firstP(ProcessList P);
-tPosP next(ProcessList P);
+tPosP nextP(ProcessList P);
 tPosP lastPosP(ProcessList P);
 bool addProcess(ProcessList *P, pid_t pid, const char *commandLine);
 void removeProcess(ProcessList *P, tPosP pos);

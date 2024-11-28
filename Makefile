@@ -1,9 +1,9 @@
 # Variables
 CC = gcc                                  # Compilador
 CFLAGS = -g -Wall -Wextra                 # Flags para el compilador
-SRC = main.c Functions.c Commands.c FileList.c HistoryList.c CommandList.c MemoryBlockList.c  # Archivos fuente
+SRC = main.c Functions.c Commands.c FileList.c HistoryList.c CommandList.c MemoryBlockList.c Processes.c  # Archivos fuente
 OBJ = $(SRC:.c=.o)                        # Archivos objeto
-TARGET = p2                               # Nombre del ejecutable
+TARGET = p3                               # Nombre del ejecutable
 
 # Regla por defecto: compilar todo
 all: $(TARGET)
@@ -24,6 +24,8 @@ FileList.o: FileList.c FileList.h
 CommandList.o: CommandList.c CommandList.h
 Commands.o: Commands.c Commands.h
 MemoryBlockList.o: MemoryBlockList.c MemoryBlockList.h
+Processes.o: Processes.c Processes.h
+
 
 # Regla para mostrar ayuda
 help:
