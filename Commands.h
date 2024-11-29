@@ -26,6 +26,7 @@
 #include "MemoryBlockList.h"
 #include "Processes.h"
 #include "Functions.h"
+#include "Directory.h"
 
 #define LENGTH_MAX_INPUT 512  //Longitud máxima de la entrada del usuario
 #define LENGTH_MAX_OUTPUT 256 //Longitud máxima de la salida
@@ -70,6 +71,20 @@ void command_recurse(char *pieces[]);
 
 void command_getuid();
 void command_setuid(char *pieces[]);
+void command_showvar();
+void command_changevar();
+void command_subsvar();
+void command_environ();
+void command_fork();
+void command_search();
+void command_exec();
+void command_execpri();
+void command_fg();
+void command_fgpri();
+void command_back();
+void command_backpri();
+void command_listjobs(ProcessList *P);
+void command_deljobs(ProcessList *P);
 
 
 

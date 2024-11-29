@@ -1565,6 +1565,7 @@ void command_recurse(char *pieces[]) {
     }
 }
 
+
 void command_getuid() {
     uid_t real_uid = getuid();   // UID real
     uid_t effective_uid = geteuid(); // UID efectivo
@@ -1639,6 +1640,60 @@ void command_setuid(char *pieces[]) {
     }
 }
 
+//mostra el valor y la direccion de las variables de entorno especificadas por el usuario
+void command_showvar(char *pieces[]) {
+    if (pieces[1] == NULL) {
+        fprintf(stderr, "Error: Variables de entorno no especificadas\n");
+        return;
+    }
+
+    for (int i = 1; pieces[i] != NULL; i++) {
+        char *value = getenv(pieces[i]);
+        if (value != NULL) {
+            printf("Variable: %s\n", pieces[i]);
+            printf("Value: %s\n", value);
+            printf("Address: %p\n", (void *)value);
+        } else {
+            printf("Variable: %s no encontrada en el entorno\n", pieces[i]);
+        }
+    }
+}
+void command_changevar();
+void command_subsvar();
+void command_environ();
+void command_fork(ProcessList *P) {
+    pid_t pid;
+
+    if ((pid=fork())==0){
+        delJobs(P);
+        printf ("ejecutando proceso %d\n", getpid());
+    }
+    else if (pid!=-1)
+        waitpid (pid,NULL,0);
+}
+void command_search();
+void commnad_exec();
+void command_execpri();
+void command_fg();
+void command_fgpri();
+void command_back();
+void command_backpri();
+
+void command_listjobs(ProcessList *P) {
+    if (isEmptyListP(*P)) {
+        printf("No hay processos en segundo plano\n");
+    }else {
+        listJobs(*P);
+    }
+}
+
+void command_deljobs(ProcessList *P) {
+    if (isEmptyListP(*P)) {
+        printf("No hay processos en segundo plano\n");
+    }else {
+        delJobs(P);
+    }
+}
 
 
 
