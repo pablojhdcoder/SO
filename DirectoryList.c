@@ -1,7 +1,5 @@
-#include "Directory.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include "DirectoryList.h"
+
 
 void createEmptyListD(DirectoryList *D) {
     *D = DNULL;
@@ -33,7 +31,7 @@ tPosD lastPosD(DirectoryList D) {
     return p;
 }
 
-bool addDirectory(DirectoryList *D, const char *directory) {
+bool addDirectoryD(DirectoryList *D, const char *directory) {
     tPosD p, q;
     if (!createNodeD(&p)) {
         return false;
@@ -51,7 +49,7 @@ bool addDirectory(DirectoryList *D, const char *directory) {
     return true;
 }
 
-void removeDirectory(DirectoryList *D, tPosD pos) {
+void removeDirectoryD(DirectoryList *D, tPosD pos) {
     if (!isEmptyListD(*D)) {
         tPosD q;
         if (pos == *D) {

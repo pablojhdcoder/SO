@@ -2,6 +2,9 @@
 #define DIRECTORY_H
 
 #include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #define DNULL NULL
 
@@ -19,8 +22,8 @@ bool createNodeD(tPosD *p);
 tPosD firstD(DirectoryList D);
 tPosD nextD(tPosD p);
 tPosD lastPosD(DirectoryList D);
-bool addDirectory(DirectoryList *D, const char *directory);
-void removeDirectory(DirectoryList *D, tPosD pos);
+bool addDirectoryD(DirectoryList *D, const char *directory);
+void removeDirectoryD(DirectoryList *D, tPosD pos);
 char* SearchListFirst(DirectoryList D);
 char* SearchListNext(tPosD *p);
 

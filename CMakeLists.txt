@@ -16,7 +16,7 @@ add_executable(P01 main.c
         Commands.h
         MemoryBlockList.c
         MemoryBlockList.h
-        Processes.h
-        Processes.c
-        Directory.h
-        Directory.c)
+        ProcessesList.h
+        ProcessesList.c
+        DirectoryList.h
+        DirectoryList.c)

@@ -1,4 +1,4 @@
-#include "Processes.h"
+#include "ProcessesList.h"
 
 void createEmptyListP(ProcessList *P) {
     *P = PNULL;

@@ -17,14 +17,15 @@ $(TARGET): $(OBJ)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # Dependencias entre los archivos fuente y sus cabeceras
-main.o: main.c Functions.h Commands.h HistoryList.h FileList.h CommandList.h MemoryBlockList.h
+main.o: main.c Functions.h Commands.h HistoryList.h FileList.h CommandList.h MemoryBlockList.h ProcessesList.h DirectoryList.h
 Functions.o: Functions.c Functions.h
 HistoryList.o: HistoryList.c HistoryList.h
 FileList.o: FileList.c FileList.h
 CommandList.o: CommandList.c CommandList.h
 Commands.o: Commands.c Commands.h
 MemoryBlockList.o: MemoryBlockList.c MemoryBlockList.h
-Processes.o: Processes.c Processes.h
+ProcessesList.o: ProcessesList.c ProcessesList.h
+DirectoryList.o: DirectoryList.c DirectoryList.h
 
 
 # Regla para mostrar ayuda

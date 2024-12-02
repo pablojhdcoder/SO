@@ -75,12 +75,13 @@ void command_date(char *pieces[]) {
 //Función auxiliar para repetir un comando guardado en el historial
 static void repeatCommand(tPosH p,bool *finished, CommandListC *commandList, HistoryList *history, OpenFileList *openFileList, MemoryBlockList *memoryBlockList, ProcessList *processList) {
     char *trozos[LENGTH_MAX_PHRASE];
+    char *envp;
     tItemH cadena;                                                          //Cadena que almacena el comando a repetir
     tItemH *comando = getItemH(p, history);                                 //Obtiene el comando a repetir
     printf("Ejecutando historic (%d): %s\n",p,*comando);
     strcpy(cadena,*comando);                                                //Copia el comando a cadena
     SplitString(*comando,trozos);                                           //Separa el comando en trozos
-    processInput(finished,&cadena,trozos,commandList,history,openFileList, memoryBlockList, processList); //Procesa el comando
+    processInput(finished,&cadena,trozos,envp, commandList,history,openFileList, memoryBlockList, processList); //Procesa el comando
 }
 
 //Mustra el historial de comandos introducidos, o repite un comando ya introducido o imprimer los últimos n comandos
@@ -380,7 +381,7 @@ void command_cwd() {
 //Funcion auxiliar para obtener los datos de los archivos de un directorio si hide está activo devuelve false y se salta ese archivo
 static bool GetFileData(bool hide, struct stat *data, char *dir, char *name, char *filePath) {
     if (!hide && (name[0] == '.' || strcmp(name, "..") == 0)) {              //Si 'hide' es false y el nombre del archivo comienza con '.' o es "..", se oculta
-        return false;           //No se obtienen datos de archivos ocultos ni del directorio padre
+        return false;           //No se obtienen datos de archivos ocultos ni del directorio padrec
     }
     //Construye la ruta completa del archivo utilizando snprintf
     snprintf(filePath, LENGTH_MAX_INPUT, "%s/%s", dir, name);
@@ -1315,9 +1316,9 @@ void command_memory(char *pieces[], MemoryBlockList memoryBlockList) {
         int local_var1, local_var2, local_var3;
         printf("Variables locales       %p,    %p,    %p\n", (void *)&local_var1, (void *)&local_var2, (void *)&local_var3);
 
-        printf("Variables globales      %p,    %p,    %p\n", (void *)&ext_var1, (void *)&ext_var2, (void *)&ext_var3);
+        printf("Variables globales      %p,    %p,    %p\n", (void *)&ext_init_var1, (void *)&ext_init_var2, (void *)&ext_init_var3);
 
-        printf("Var (N.I.)globales      %p,    %p,    %p\n", (void *)&ext_init_var1, (void *)&ext_init_var2, (void *)&ext_init_var3);
+        printf("Var (N.I.)globales      %p,    %p,    %p\n", (void *)&ext_var1, (void *)&ext_var2, (void *)&ext_var3);
 
         static int static_var1, static_var2, static_var3;
         printf("Variables staticas      %p,    %p,    %p\n", (void *)&static_var1, (void *)&static_var2, (void *)&static_var3);
@@ -1640,27 +1641,130 @@ void command_setuid(char *pieces[]) {
     }
 }
 
+//Tiene las variables de entorno del proceso actual
+extern char **environ;
+
 //mostra el valor y la direccion de las variables de entorno especificadas por el usuario
 void command_showvar(char *pieces[]) {
     if (pieces[1] == NULL) {
-        fprintf(stderr, "Error: Variables de entorno no especificadas\n");
-        return;
-    }
-
-    for (int i = 1; pieces[i] != NULL; i++) {
-        char *value = getenv(pieces[i]);
-        if (value != NULL) {
-            printf("Variable: %s\n", pieces[i]);
-            printf("Value: %s\n", value);
-            printf("Address: %p\n", (void *)value);
-        } else {
-            printf("Variable: %s no encontrada en el entorno\n", pieces[i]);
+        //Print todas las variables de entorno
+        for (int i = 0; environ[i] != NULL; i++) {
+            printf("%p->main pieces[3][%d]=(%p) %s\n", (void *)&environ[i], i, (void *)environ[i], environ[i]);
+        }
+    } else {
+        //Print variables de entorno especificas
+        for (int j = 1; pieces[j] != NULL; j++) {
+            char *value = getenv(pieces[j]);
+            if (value != NULL) {
+                for (int i = 0; environ[i] != NULL; i++) {
+                    if (strncmp(environ[i], pieces[j], strlen(pieces[j])) == 0 && environ[i][strlen(pieces[j])] == '=') {
+                        printf("Con pieces[3] main %s=%s(%p) @%p\n", pieces[j], value, (void *)value, (void *)&environ[i]);
+                        printf("  Con environ %s=%s(%p) @%p\n", pieces[j], value, (void *)value, (void *)&environ[i]);
+                        printf("   Con getenv %s(%p)\n", value, (void *)value);
+                        break;
+                    }
+                }
+            } else {
+                printf("Variable: %s no encontrada en el entorno\n", pieces[j]);
+            }
         }
     }
 }
-void command_changevar();
-void command_subsvar();
-void command_environ();
+void command_changevar(char *pieces[]) {
+    if (pieces[1] == NULL || pieces[2] == NULL || pieces[3] == NULL) {
+        fprintf(stderr, "Uso: changevar [-a|-e|-p] var valor\n");
+        return;
+    }
+
+    char *env_entry;
+    size_t len = strlen(pieces[2]) + strlen(pieces[3]) + 2; // +2 for '=' and '\0'
+
+    if (strcmp(pieces[1], "-a") == 0) {
+        //Acceso por pieces[3]
+        for (int i = 0; environ[i] != NULL; i++) {
+            if (strncmp(environ[i], pieces[2], strlen(pieces[2])) == 0 && environ[i][strlen(pieces[2])] == '=') {
+                snprintf(environ[i], len, "%s=%s", pieces[2], pieces[3]);
+                return;
+            }
+        }
+        fprintf(stderr, "Variable %s no encontrada\n", pieces[2]);
+    } else if (strcmp(pieces[1], "-e") == 0) {
+        //Acceso por environ
+        for (int i = 0; environ[i] != NULL; i++) {
+            if (strncmp(environ[i], pieces[2], strlen(pieces[2])) == 0 && environ[i][strlen(pieces[2])] == '=') {
+                snprintf(environ[i], len, "%s=%s", pieces[2], pieces[3]);
+                return;
+            }
+        }
+        fprintf(stderr, "Variable %s no encontrada\n", pieces[2]);
+    } else if (strcmp(pieces[1], "-p") == 0) {
+        //Accesso por putenv
+        env_entry = malloc(len);
+        if (env_entry == NULL) {
+            perror("malloc");
+            return;
+        }
+        snprintf(env_entry, len, "%s=%s", pieces[2], pieces[3]);
+        if (putenv(env_entry) != 0) {
+            perror("putenv");
+            free(env_entry);
+            return;
+        }
+    } else {
+        fprintf(stderr, "Opcion no valida: %s\n", pieces[1]);
+    }
+}
+void command_subsvar(char *pieces[]) {
+    if (pieces[1] == NULL || pieces[2] == NULL || pieces[3] == NULL || pieces[4] == NULL) {
+        fprintf(stderr, "Uso: subsvar [-a|-e] var1 var2 valor\n");
+        return;
+    }
+
+    size_t len = strlen(pieces[3]) + strlen(pieces[4]) + 2; // +2 for '=' and '\0'
+
+    if (strcmp(pieces[1], "-a") == 0) {
+        //Accesso por pieces[3]
+        for (int i = 0; environ[i] != NULL; i++) {
+            if (strncmp(environ[i], pieces[2], strlen(pieces[2])) == 0 && environ[i][strlen(pieces[2])] == '=') {
+                snprintf(environ[i], len, "%s=%s", pieces[3], pieces[4]);
+                return;
+            }
+        }
+        fprintf(stderr, "Variable %s no encontrada\n", pieces[2]);
+    } else if (strcmp(pieces[1], "-e") == 0) {
+        //Access por environ
+        for (int i = 0; environ[i] != NULL; i++) {
+            if (strncmp(environ[i], pieces[2], strlen(pieces[2])) == 0 && environ[i][strlen(pieces[2])] == '=') {
+                snprintf(environ[i], len, "%s=%s", pieces[3], pieces[4]);
+                return;
+            }
+        }
+        fprintf(stderr, "Variable %s no encontrada\n", pieces[2]);
+    } else {
+        fprintf(stderr, "Opcion no valida: %s\n", pieces[1]);
+    }
+}
+
+
+void command_environ(char *pieces[], char *envp[]) {
+    if (pieces[1] == NULL) {
+        for (int i = 0; envp[i] != NULL; i++) {
+            printf("%p->main pieces[3][%d]=(%p) %s\n", (void *)&envp[i], i, (void *)envp[i], envp[i]);
+        }
+        return;
+    }
+
+    if (strcmp(pieces[1], "-environ") == 0) {
+        for (int i = 0; environ[i] != NULL; i++) {
+            printf("%p->environ[%d]=(%p) %s\n", (void *)&environ[i], i, (void *)environ[i], environ[i]);
+        }
+    } else if (strcmp(pieces[1], "-addr") == 0) {
+        printf("environ:   %p (almacenado en %p)\n", (void *)environ, (void *)&environ);
+        printf("main pieces[3]: %p (almacenado en %p)\n", (void *)envp, (void *)&envp);
+    }else {
+        fprintf(stderr, "Uso: environ [-environ|-addr]\n");
+    }
+}
 void command_fork(ProcessList *P) {
     pid_t pid;
 
