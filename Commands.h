@@ -33,6 +33,7 @@
 #define LENGTH_MAX_PHRASE 128 //Longitud máxima de la frase
 #define LENGTH_MAX_PATH 128  //Longitud máxima de la ruta
 #define LENGTH_MAX_FULLPATH 256  //Longitud máxima de la ruta completa
+#define MAXVAR 20
 #define TAMANO 2048
 
 
@@ -77,7 +78,7 @@ void command_subsvar(char *pieces[]);
 void command_environ(char *pieces[], char *envp[]);
 void command_fork(ProcessList *P);
 void command_search();
-void command_exec();
+void command_exec(char *pieces[], DirectoryList D);
 void command_execpri();
 void command_fg();
 void command_fgpri();

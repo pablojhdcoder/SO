@@ -53,7 +53,7 @@ static void AddToHistoryList(tItemH *command, HistoryList *lista){
 }
 
 //Función auxiliar para leer la entrada introducida por el usuario
-void readInput(bool *finished, CommandListC *commandList, HistoryList *history, OpenFileList *openFileList, MemoryBlockList *memoryBlockList,ProcessList *processList) {
+void readInput(bool *finished, CommandListC *commandList, HistoryList *history, OpenFileList *openFileList, MemoryBlockList *memoryBlockList,ProcessList *processList, DirectoryList D) {
     char input[LENGTH_MAX_INPUT];  //Buffer para almacenar la entrada del usuario
     extern char **environ;         // Use the global environ variable
     char **envp = environ;         // Initialize envp with environ
@@ -71,7 +71,7 @@ void readInput(bool *finished, CommandListC *commandList, HistoryList *history, 
         int NumTrozos = SplitString(input, trozos);  //Divide la cadena en trozos (palabras) y devuelve el número de trozos
 
         if (NumTrozos > 0) {  //Si se han encontrado trozos, procesa la entrada
-            processInput(finished, &cadena, trozos, envp, commandList, history, openFileList, memoryBlockList, processList);  //Procesa la entrada
+            processInput(finished, &cadena, trozos, envp, commandList, history, openFileList, memoryBlockList, processList, D);  //Procesa la entrada
         }
     } else {
         perror("Error al leer la entrada");  //Imprime un mensaje de error si la lectura falla
@@ -169,7 +169,7 @@ static int getCommandId(tItemH *str, char *pieces[], CommandListC *commandList, 
     return -1;                                      //Si el comando no es válido, retorna -1
 }
 //Procesa el comando introducido //Se puede hacer privada??
-void processInput(bool *finished,tItemH *str,char *pieces[],char *envp[], CommandListC *commandList, HistoryList *history,OpenFileList *fileList, MemoryBlockList *memoryBlockList, ProcessList *processList){
+void processInput(bool *finished,tItemH *str,char *pieces[],char *envp[], CommandListC *commandList, HistoryList *history,OpenFileList *fileList, MemoryBlockList *memoryBlockList, ProcessList *processList, DirectoryList D) {
     switch (getCommandId(str,pieces,commandList,history)) {
         case 0:
             command_authors(pieces);
@@ -281,10 +281,10 @@ void processInput(bool *finished,tItemH *str,char *pieces[],char *envp[], Comman
             //command_search();
             break;
         case 37:
-            //command_exec();
+            command_exec(pieces, D);
             break;
         case 38:
-            //command_execpri();
+            command_execpri(pieces, D);
             break;
         case 39:
             //command_fg();

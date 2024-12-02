@@ -1644,8 +1644,45 @@ void command_setuid(char *pieces[]) {
 //Tiene las variables de entorno del proceso actual
 extern char **environ;
 
+int BuscarVariable (char * var, char *e[])  /*busca una variable en el entorno que se le pasa como parÃ¡metro*/
+{                                           /*devuelve la posicion de la variable en el entorno, -1 si no existe*/
+    int pos=0;
+    char aux[MAXVAR];
+
+    strcpy (aux,var);
+    strcat (aux,"=");
+
+    while (e[pos]!=NULL)
+        if (!strncmp(e[pos],aux,strlen(aux)))
+            return (pos);
+        else
+            pos++;
+    errno=ENOENT;   /*no hay tal variable*/
+    return(-1);
+}
+
+
+int CambiarVariable(char * var, char * valor, char *e[]) /*cambia una variable en el entorno que se le pasa como parÃ¡metro*/
+{                                                        /*lo hace directamente, no usa putenv*/
+    int pos;
+    char *aux;
+
+    if ((pos=BuscarVariable(var,e))==-1)
+        return(-1);
+
+    if ((aux=(char *)malloc(strlen(var)+strlen(valor)+2))==NULL)
+        return -1;
+    strcpy(aux,var);
+    strcat(aux,"=");
+    strcat(aux,valor);
+    e[pos]=aux;
+    return (pos);
+}
+
+
 //mostra el valor y la direccion de las variables de entorno especificadas por el usuario
 void command_showvar(char *pieces[]) {
+
     if (pieces[1] == NULL) {
         //Print todas las variables de entorno
         for (int i = 0; environ[i] != NULL; i++) {
@@ -1654,18 +1691,14 @@ void command_showvar(char *pieces[]) {
     } else {
         //Print variables de entorno especificas
         for (int j = 1; pieces[j] != NULL; j++) {
-            char *value = getenv(pieces[j]);
-            if (value != NULL) {
-                for (int i = 0; environ[i] != NULL; i++) {
-                    if (strncmp(environ[i], pieces[j], strlen(pieces[j])) == 0 && environ[i][strlen(pieces[j])] == '=') {
-                        printf("Con pieces[3] main %s=%s(%p) @%p\n", pieces[j], value, (void *)value, (void *)&environ[i]);
-                        printf("  Con environ %s=%s(%p) @%p\n", pieces[j], value, (void *)value, (void *)&environ[i]);
-                        printf("   Con getenv %s(%p)\n", value, (void *)value);
-                        break;
-                    }
-                }
-            } else {
-                printf("Variable: %s no encontrada en el entorno\n", pieces[j]);
+            int pos = BuscarVariable(pieces[1], environ);
+            if (pos != -1) {
+                char *value = getenv(pieces[j]);
+                printf("Con pieces[3] main %s=%s(%p) @%p\n", pieces[j], value, (void *)value, (void *)&environ[pos]);
+                printf("  Con environ %s=%s(%p) @%p\n", pieces[j], value, (void *)value, (void *)&environ[pos]);
+                printf("   Con getenv %s(%p)\n", value, (void *)value);
+            }else {
+                fprintf(stderr, "Variable %s no encontrada\n", pieces[j]);
             }
         }
     }
@@ -1680,25 +1713,19 @@ void command_changevar(char *pieces[]) {
     size_t len = strlen(pieces[2]) + strlen(pieces[3]) + 2; // +2 for '=' and '\0'
 
     if (strcmp(pieces[1], "-a") == 0) {
-        //Acceso por pieces[3]
-        for (int i = 0; environ[i] != NULL; i++) {
-            if (strncmp(environ[i], pieces[2], strlen(pieces[2])) == 0 && environ[i][strlen(pieces[2])] == '=') {
-                snprintf(environ[i], len, "%s=%s", pieces[2], pieces[3]);
-                return;
-            }
+        int pos = BuscarVariable(pieces[2], environ);
+        if (pos != -1) {
+            snprintf(environ[pos], len, "%s=%s", pieces[2], pieces[3]);
+        } else {
+            fprintf(stderr, "Variable %s no encontrada\n", pieces[2]);
         }
-        fprintf(stderr, "Variable %s no encontrada\n", pieces[2]);
     } else if (strcmp(pieces[1], "-e") == 0) {
-        //Acceso por environ
-        for (int i = 0; environ[i] != NULL; i++) {
-            if (strncmp(environ[i], pieces[2], strlen(pieces[2])) == 0 && environ[i][strlen(pieces[2])] == '=') {
-                snprintf(environ[i], len, "%s=%s", pieces[2], pieces[3]);
-                return;
-            }
+        // Acceso por environ
+        if (CambiarVariable(pieces[2], pieces[3], environ) == -1) {
+            fprintf(stderr, "Error al cambiar la variable %s\n", pieces[2]);
         }
-        fprintf(stderr, "Variable %s no encontrada\n", pieces[2]);
     } else if (strcmp(pieces[1], "-p") == 0) {
-        //Accesso por putenv
+        // Acceso por putenv
         env_entry = malloc(len);
         if (env_entry == NULL) {
             perror("malloc");
@@ -1714,32 +1741,29 @@ void command_changevar(char *pieces[]) {
         fprintf(stderr, "Opcion no valida: %s\n", pieces[1]);
     }
 }
+//hay que testear la nueva implementadcion
 void command_subsvar(char *pieces[]) {
     if (pieces[1] == NULL || pieces[2] == NULL || pieces[3] == NULL || pieces[4] == NULL) {
         fprintf(stderr, "Uso: subsvar [-a|-e] var1 var2 valor\n");
         return;
     }
-
+    int pos = BuscarVariable(pieces[1], environ);
+    if (pos == -1) {
+        fprintf(stderr, "Imposible sustituir variable %s por %s: File exists\n", pieces[2], pieces[3]);
+    }
     size_t len = strlen(pieces[3]) + strlen(pieces[4]) + 2; // +2 for '=' and '\0'
 
     if (strcmp(pieces[1], "-a") == 0) {
-        //Accesso por pieces[3]
-        for (int i = 0; environ[i] != NULL; i++) {
-            if (strncmp(environ[i], pieces[2], strlen(pieces[2])) == 0 && environ[i][strlen(pieces[2])] == '=') {
-                snprintf(environ[i], len, "%s=%s", pieces[3], pieces[4]);
-                return;
+        // Acceso directo (modificación manual de `environ`)
+        int pos = BuscarVariable(pieces[2], environ);
+            if (pos != -1) {
+                snprintf(environ[pos], len, "%s=%s", pieces[3], pieces[4]);
             }
-        }
-        fprintf(stderr, "Variable %s no encontrada\n", pieces[2]);
     } else if (strcmp(pieces[1], "-e") == 0) {
-        //Access por environ
-        for (int i = 0; environ[i] != NULL; i++) {
-            if (strncmp(environ[i], pieces[2], strlen(pieces[2])) == 0 && environ[i][strlen(pieces[2])] == '=') {
-                snprintf(environ[i], len, "%s=%s", pieces[3], pieces[4]);
-                return;
+        // Acceso por la función auxiliar `CambiarVariable`
+        if (CambiarVariable(pieces[3], pieces[4], environ) == -1)  {
+            fprintf(stderr, "Error al cambiar la variable %s\n", pieces[2]);
             }
-        }
-        fprintf(stderr, "Variable %s no encontrada\n", pieces[2]);
     } else {
         fprintf(stderr, "Opcion no valida: %s\n", pieces[1]);
     }
@@ -1776,8 +1800,93 @@ void command_fork(ProcessList *P) {
         waitpid (pid,NULL,0);
 }
 void command_search();
-void commnad_exec();
-void command_execpri();
+
+char * Ejecutable (char *s, DirectoryList D)
+{
+    static char path[MAXNAME];
+    struct stat st;
+    char *p;
+
+    if (s==NULL || (p=SearchListFirst(D))==NULL)
+        return s;
+    if (s[0]=='/' || !strncmp (s,"./",2) || !strncmp (s,"../",3))
+        return s;        /*is an absolute pathname*/
+
+    strncpy (path, p, MAXNAME-1);strncat (path,"/",MAXNAME-1); strncat(path,s,MAXNAME-1);
+    if (lstat(path,&st)!=-1)
+        return path;
+    while ((p=SearchListNext(D))!=NULL){
+        strncpy (path, p, MAXNAME-1);strncat (path,"/",MAXNAME-1); strncat(path,s,MAXNAME-1);
+        if (lstat(path,&st)!=-1)
+            return path;
+    }
+    return s;
+}
+
+
+int Execpve(char *pieces[], char **NewEnv, int * pprio, DirectoryList D)
+{
+    char *p;               /*NewEnv contains the address of the new environment*/
+    /*pprio the address of the new priority*/
+    /*NULL indicates no change in environment and/or priority*/
+    if (pieces[0]==NULL || (p=Ejecutable(pieces[0],D))==NULL){
+        errno=EFAULT;
+        return-1;
+    }
+    if (pprio !=NULL  && setpriority(PRIO_PROCESS,getpid(),*pprio)==-1 && errno){
+        printf ("Imposible cambiar prioridad: %s\n",strerror(errno));
+        return -1;
+    }
+
+    if (NewEnv==NULL)
+        return execv(p,pieces);
+    else
+        return execve (p, pieces, NewEnv);
+}
+
+//la shell deja de existir y es sustituida por el comando ejectuado
+void command_exec(char *pieces[], DirectoryList D) {
+    if (pieces[1] == NULL) {
+        fprintf(stderr, "Imposible ejecutar: Bad adress\n");
+        return;
+    }
+
+    int *pprio = NULL;
+    int priority;
+    int i = 1;
+    while (pieces[i] != NULL && pieces[i][0] != '@') {
+        i++;
+    }
+    if (pieces[i] != NULL && pieces[i][0] == '@') {
+        priority = strtoll(&pieces[i][1], NULL, 10);
+        pprio = &priority;
+        pieces[i] = NULL; // Terminate the arguments list
+    }
+
+    char **newEnv = &pieces[1];
+    while (*newEnv != NULL && strchr(*newEnv, '=') != NULL) {
+        newEnv++;
+    }
+
+    if (Execpve(newEnv, newEnv, pprio, D) == -1) {
+        perror("Error al ejecutar el comando");
+    }
+}
+void command_execpri(char *pieces[], DirectoryList D) {
+    if (pieces[1] == NULL || pieces[2] == NULL) {
+        fprintf(stderr, "Uso: execpri <prio> <prog> <args...>\n");
+        return;
+    }
+
+    int priority = strtol(pieces[1], NULL, 10);
+    int *pprio = &priority;
+
+    char **progArgs = &pieces[2];
+
+    if (Execpve(progArgs, NULL, pprio, D) == -1) {
+        perror("Error al ejecutar el comando");
+    }
+}
 void command_fg();
 void command_fgpri();
 void command_back();
