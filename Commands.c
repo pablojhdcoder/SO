@@ -73,19 +73,19 @@ void command_date(char *pieces[]) {
 }
 
 //Función auxiliar para repetir un comando guardado en el historial
-static void repeatCommand(tPosH p,bool *finished, CommandListC *commandList, HistoryList *history, OpenFileList *openFileList, MemoryBlockList *memoryBlockList, ProcessList *processList) {
+static void repeatCommand(tPosH p,bool *finished, CommandListC *commandList, HistoryList *history, OpenFileList *openFileList, MemoryBlockList *memoryBlockList, ProcessList *processList, DirectoryList *directorylist) {
     char *trozos[LENGTH_MAX_PHRASE];
-    char *envp;
+    char *envp [] = {NULL};
     tItemH cadena;                                                          //Cadena que almacena el comando a repetir
     tItemH *comando = getItemH(p, history);                                 //Obtiene el comando a repetir
     printf("Ejecutando historic (%d): %s\n",p,*comando);
     strcpy(cadena,*comando);                                                //Copia el comando a cadena
     SplitString(*comando,trozos);                                           //Separa el comando en trozos
-    processInput(finished,&cadena,trozos,envp, commandList,history,openFileList, memoryBlockList, processList); //Procesa el comando
+    processInput(finished,&cadena,trozos,envp, commandList,history,openFileList, memoryBlockList, processList, directorylist); //Procesa el comando
 }
 
 //Mustra el historial de comandos introducidos, o repite un comando ya introducido o imprimer los últimos n comandos
-void command_historic (char *pieces[],bool *finished,CommandListC *commandList, HistoryList *history, OpenFileList *openFileList, MemoryBlockList *memoryBlockList, ProcessList *processList) {
+void command_historic (char *pieces[],bool *finished,CommandListC *commandList, HistoryList *history, OpenFileList *openFileList, MemoryBlockList *memoryBlockList, ProcessList *processList, DirectoryList *D) {
     char *NoValidCharacter;
 
     //Si se proporciona un argumento numérico
@@ -95,7 +95,7 @@ void command_historic (char *pieces[],bool *finished,CommandListC *commandList, 
 
         if(*NoValidCharacter == '\0') {                                     //Si todo el argumento es un número válido, entonces el puntero NoValidCharacter apuntará al \0, strtol convirtió la cadena exitosamente
             if (0 <= number && number <= lastH(*history)) {
-                repeatCommand(number,finished,commandList,history,openFileList, memoryBlockList, processList);
+                repeatCommand(number,finished,commandList,history,openFileList, memoryBlockList, processList, D);
             }else if (number < 0) {
                 number = -number;               //Cambiar el signo
                 printLastNH(history,number);    //Imprime los últimos n comandos
@@ -107,7 +107,7 @@ void command_historic (char *pieces[],bool *finished,CommandListC *commandList, 
             fprintf(stderr,"Parte de la cadena no es válida: %s\n", NoValidCharacter);
             printf("Parte numérica leída: %d\n", number);   //Se coge la parte que se ha leído exitosamente
             if (0 <= number && number <= lastH(*history)) {
-                repeatCommand(number,finished,commandList,history,openFileList, memoryBlockList, processList);
+                repeatCommand(number,finished,commandList,history,openFileList, memoryBlockList, processList, D);
             }else if (number < 0) {
                 number = -number;                  //Cambiar el signo
                 printLastNH(history,number);       //Imprime los últimos n comandos
@@ -1801,13 +1801,13 @@ void command_fork(ProcessList *P) {
 }
 void command_search();
 
-char * Ejecutable (char *s, DirectoryList D)
+char * Ejecutable (char *s, DirectoryList *D)
 {
     static char path[MAXNAME];
     struct stat st;
     char *p;
 
-    if (s==NULL || (p=SearchListFirst(D))==NULL)
+    if (s==NULL || (p=SearchListFirst(*D))==NULL)
         return s;
     if (s[0]=='/' || !strncmp (s,"./",2) || !strncmp (s,"../",3))
         return s;        /*is an absolute pathname*/
@@ -1824,7 +1824,7 @@ char * Ejecutable (char *s, DirectoryList D)
 }
 
 
-int Execpve(char *pieces[], char **NewEnv, int * pprio, DirectoryList D)
+int Execpve(char *pieces[], char **NewEnv, int * pprio, DirectoryList *D)
 {
     char *p;               /*NewEnv contains the address of the new environment*/
     /*pprio the address of the new priority*/
@@ -1845,7 +1845,7 @@ int Execpve(char *pieces[], char **NewEnv, int * pprio, DirectoryList D)
 }
 
 //la shell deja de existir y es sustituida por el comando ejectuado
-void command_exec(char *pieces[], DirectoryList D) {
+void command_exec(char *pieces[], DirectoryList *directorylist) {
     if (pieces[1] == NULL) {
         fprintf(stderr, "Imposible ejecutar: Bad adress\n");
         return;
@@ -1854,13 +1854,19 @@ void command_exec(char *pieces[], DirectoryList D) {
     int *pprio = NULL;
     int priority;
     int i = 1;
+
     while (pieces[i] != NULL && pieces[i][0] != '@') {
         i++;
     }
     if (pieces[i] != NULL && pieces[i][0] == '@') {
-        priority = strtoll(&pieces[i][1], NULL, 10);
+        char *endptr;
+        priority = strtol(&pieces[i][1], &endptr, 10);
+        if (*endptr != '\0') {
+            fprintf(stderr, "Error: Prioridad inválida: %s\n", pieces[i]);
+            return;
+        }
         pprio = &priority;
-        pieces[i] = NULL; // Terminate the arguments list
+        pieces[i] = NULL; // Finalizar la lista de argumentos
     }
 
     char **newEnv = &pieces[1];
@@ -1868,11 +1874,11 @@ void command_exec(char *pieces[], DirectoryList D) {
         newEnv++;
     }
 
-    if (Execpve(newEnv, newEnv, pprio, D) == -1) {
+    if (Execpve(newEnv, newEnv, pprio, directorylist) == -1) {
         perror("Error al ejecutar el comando");
     }
 }
-void command_execpri(char *pieces[], DirectoryList D) {
+void command_execpri(char *pieces[], DirectoryList *directorylist) {
     if (pieces[1] == NULL || pieces[2] == NULL) {
         fprintf(stderr, "Uso: execpri <prio> <prog> <args...>\n");
         return;
@@ -1883,7 +1889,7 @@ void command_execpri(char *pieces[], DirectoryList D) {
 
     char **progArgs = &pieces[2];
 
-    if (Execpve(progArgs, NULL, pprio, D) == -1) {
+    if (Execpve(progArgs, NULL, pprio, directorylist) == -1) {
         perror("Error al ejecutar el comando");
     }
 }

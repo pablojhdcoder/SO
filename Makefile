@@ -1,7 +1,7 @@
 # Variables
 CC = gcc                                  # Compilador
 CFLAGS = -g -Wall -Wextra                 # Flags para el compilador
-SRC = main.c Functions.c Commands.c FileList.c HistoryList.c CommandList.c MemoryBlockList.c Processes.c  # Archivos fuente
+SRC = main.c Functions.c Commands.c FileList.c HistoryList.c CommandList.c MemoryBlockList.c ProcessesList.c DirectoryList.c  # Archivos fuente
 OBJ = $(SRC:.c=.o)                        # Archivos objeto
 TARGET = p3                               # Nombre del ejecutable
 

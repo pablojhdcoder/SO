@@ -25,8 +25,8 @@
 #include "FileList.h"
 #include "MemoryBlockList.h"
 #include "ProcessesList.h"
-#include "Functions.h"
 #include "DirectoryList.h"
+#include "Functions.h"
 
 #define LENGTH_MAX_INPUT 512  //Longitud máxima de la entrada del usuario
 #define LENGTH_MAX_OUTPUT 256 //Longitud máxima de la salida
@@ -42,7 +42,7 @@ void command_pid();
 void command_ppid();
 void command_cd(char *pieces[]);
 void command_date(char *pieces[]);
-void command_historic (char *pieces[],bool *finished,CommandListC *commandList, HistoryList *history, OpenFileList *openFileList, MemoryBlockList *memoryBlockList, ProcessList *processList);
+void command_historic (char *pieces[],bool *finished,CommandListC *commandList, HistoryList *history, OpenFileList *openFileList, MemoryBlockList *memoryBlockList, ProcessList *processList, DirectoryList *D);
 void command_open(char *pieces[],OpenFileList *openFileList);
 void command_close(char *pieces[],OpenFileList *openFileList);
 void command_dup(char *pieces[], OpenFileList *openFileList);
@@ -78,8 +78,8 @@ void command_subsvar(char *pieces[]);
 void command_environ(char *pieces[], char *envp[]);
 void command_fork(ProcessList *P);
 void command_search();
-void command_exec(char *pieces[], DirectoryList D);
-void command_execpri();
+void command_exec(char *pieces[], DirectoryList *directorylist);
+void command_execpri(char *pieces[], DirectoryList *directorylist);
 void command_fg();
 void command_fgpri();
 void command_back();
