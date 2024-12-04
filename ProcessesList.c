@@ -61,6 +61,11 @@ bool addProcess(ProcessList *P, pid_t pid, const char *commandLine) {
 void removeProcess(ProcessList *P, tPosP pos) {
     if (!isEmptyListP(*P)) {
         tPosP q;
+        if (pos->data.status == ACTIVE) {
+            kill(pos->data.pid, SIGTERM); // Enviar señal de terminación
+            int status;
+            waitpid(pos->data.pid, &status, 0); // Esperar a que termine
+        }
         if (pos == *P) {
             *P = (*P)->next;
         } else if (pos->next == PNULL) {
@@ -152,5 +157,20 @@ void delJobs(ProcessList *P) {
             prev = current;
             current = current->next;
         }
+    }
+}
+
+void CleanProcessList(ProcessList *P) {
+    tPosP current = *P;
+    tPosP temp = PNULL;
+    while (current != PNULL) {
+        if (current->data.status == ACTIVE) {
+            kill(current->data.pid, SIGTERM); // Enviar señal de terminación
+            int status;
+            waitpid(current->data.pid, &status, 0); // Esperar a que termine
+        }
+        temp = current;
+        current = current->next;
+        free(temp);
     }
 }

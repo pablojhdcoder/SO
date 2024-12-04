@@ -1,6 +1,5 @@
 #include "DirectoryList.h"
 
-
 void createEmptyListD(DirectoryList *D) {
     *D = DNULL;
 }
@@ -69,12 +68,21 @@ void removeDirectoryD(DirectoryList *D, tPosD pos) {
     }
 }
 
-char* SearchListFirst(DirectoryList D) {
+char* SearchListFirstD(DirectoryList D) {
     if (isEmptyListD(D)) {
         return NULL;
     }
     return D->directory;
 }
+
+tPosD SearchDirectoryD(char *p, DirectoryList D) {
+    for (tPosD t = D; t != DNULL; t = t->next) {
+        if (strcmp(p, t->directory) == 0) {
+            return t;
+        }
+    }
+}
+
 
 char* SearchListNext(tPosD *p) {
     if (*p == DNULL || (*p)->next == DNULL) {
@@ -82,4 +90,21 @@ char* SearchListNext(tPosD *p) {
     }
     *p = (*p)->next;
     return (*p)->directory;
+}
+
+void ListDirectoryList(DirectoryList D) {
+    if (!isEmptyListD(D)) {
+        for (tPosD p = D; p != DNULL; p = p->next) {
+            printf("%s\n", p->directory);
+        }
+    }
+}
+
+void cleanDirectoryList(DirectoryList *D) {
+    tPosD p = DNULL;
+    while (*D != DNULL) {
+        p = *D;
+        *D = (*D)->next;
+        free(p);
+    }
 }

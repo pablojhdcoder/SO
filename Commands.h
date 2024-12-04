@@ -33,8 +33,8 @@
 #define LENGTH_MAX_PHRASE 128 //Longitud máxima de la frase
 #define LENGTH_MAX_PATH 128  //Longitud máxima de la ruta
 #define LENGTH_MAX_FULLPATH 256  //Longitud máxima de la ruta completa
-#define MAXVAR 20
 #define TAMANO 2048
+
 
 
 void command_authors(char * pieces[]);
@@ -42,13 +42,13 @@ void command_pid();
 void command_ppid();
 void command_cd(char *pieces[]);
 void command_date(char *pieces[]);
-void command_historic (char *pieces[],bool *finished,CommandListC *commandList, HistoryList *history, OpenFileList *openFileList, MemoryBlockList *memoryBlockList, ProcessList *processList, DirectoryList *D);
+void command_historic (char *pieces[],bool *finished,CommandListC *commandList, HistoryList *history, OpenFileList *openFileList, MemoryBlockList *memoryBlockList, ProcessList *processList, DirectoryList *directoryList);
 void command_open(char *pieces[],OpenFileList *openFileList);
 void command_close(char *pieces[],OpenFileList *openFileList);
 void command_dup(char *pieces[], OpenFileList *openFileList);
 void command_infosys();
 void command_help(char * pieces[], CommandListC *commandList);
-void command_exit(bool *finished,OpenFileList *openFileList, HistoryList *history, CommandListC *commandList, MemoryBlockList *memoryBlockList);
+void command_exit(bool *finished,OpenFileList *openFileList, HistoryList *history, CommandListC *commandList, MemoryBlockList *memoryBlockList, DirectoryList *directoryList, ProcessList *processList);
 
 void command_makefile(char *pieces[]);
 void command_makedir(char *pieces[]);
@@ -77,12 +77,12 @@ void command_changevar(char *pieces[]);
 void command_subsvar(char *pieces[]);
 void command_environ(char *pieces[], char *envp[]);
 void command_fork(ProcessList *P);
-void command_search();
-void command_exec(char *pieces[], DirectoryList *directorylist);
-void command_execpri(char *pieces[], DirectoryList *directorylist);
-void command_fg();
-void command_fgpri();
-void command_back();
+void command_search(char *pieces[], DirectoryList *directoryList);
+void command_exec();
+void command_execpri();
+void command_fg(char *pieces[],  DirectoryList *directoryList);
+void command_fgpri(char *pieces[], DirectoryList *directoryList);
+void command_back(char *pieces[], DirectoryList *directoryList, ProcessList *processList);
 void command_backpri();
 void command_listjobs(ProcessList *P);
 void command_deljobs(ProcessList *P);

@@ -1,7 +1,7 @@
 # Variables
 CC = gcc                                  # Compilador
 CFLAGS = -g -Wall -Wextra                 # Flags para el compilador
-SRC = main.c Functions.c Commands.c FileList.c HistoryList.c CommandList.c MemoryBlockList.c ProcessesList.c DirectoryList.c  # Archivos fuente
+SRC = main.c Functions.c Commands.c FileList.c HistoryList.c CommandList.c MemoryBlockList.c ProcessesList.c DirectoryList.c # Archivos fuente
 OBJ = $(SRC:.c=.o)                        # Archivos objeto
 TARGET = p3                               # Nombre del ejecutable
 
@@ -17,7 +17,7 @@ $(TARGET): $(OBJ)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # Dependencias entre los archivos fuente y sus cabeceras
-main.o: main.c Functions.h Commands.h HistoryList.h FileList.h CommandList.h MemoryBlockList.h ProcessesList.h DirectoryList.h
+main.o: main.c Functions.h Commands.h HistoryList.h FileList.h CommandList.h MemoryBlockList.h
 Functions.o: Functions.c Functions.h
 HistoryList.o: HistoryList.c HistoryList.h
 FileList.o: FileList.c FileList.h
@@ -26,6 +26,7 @@ Commands.o: Commands.c Commands.h
 MemoryBlockList.o: MemoryBlockList.c MemoryBlockList.h
 ProcessesList.o: ProcessesList.c ProcessesList.h
 DirectoryList.o: DirectoryList.c DirectoryList.h
+
 
 
 # Regla para mostrar ayuda

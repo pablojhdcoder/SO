@@ -1,10 +1,10 @@
 #ifndef DIRECTORY_H
 #define DIRECTORY_H
 
-#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 
 #define DNULL NULL
 
@@ -24,7 +24,10 @@ tPosD nextD(tPosD p);
 tPosD lastPosD(DirectoryList D);
 bool addDirectoryD(DirectoryList *D, const char *directory);
 void removeDirectoryD(DirectoryList *D, tPosD pos);
-char* SearchListFirst(DirectoryList D);
+char* SearchListFirstD(DirectoryList D);
+tPosD SearchDirectoryD(char *p, DirectoryList D);
 char* SearchListNext(tPosD *p);
+void ListDirectoryList(DirectoryList D);
+void cleanDirectoryList(DirectoryList *D);
 
 #endif //DIRECTORY_H

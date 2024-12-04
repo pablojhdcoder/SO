@@ -45,5 +45,6 @@ void removeProcess(ProcessList *P, tPosP pos);
 void updateProcessStatus(ProcessList *P);
 void listJobs(ProcessList P);
 void delJobs(ProcessList *P);
+void CleanProcessList(ProcessList *P);
 
 #endif //PROCESSES_H

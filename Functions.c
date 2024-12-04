@@ -9,6 +9,7 @@
 #include <fcntl.h>
 
 
+
 //Función que imprime el prompt
 void printPrompt(){
     printf("→ ");
@@ -53,7 +54,7 @@ static void AddToHistoryList(tItemH *command, HistoryList *lista){
 }
 
 //Función auxiliar para leer la entrada introducida por el usuario
-void readInput(bool *finished, CommandListC *commandList, HistoryList *history, OpenFileList *openFileList, MemoryBlockList *memoryBlockList,ProcessList *processList, DirectoryList *directorylist) {
+void readInput(bool *finished, CommandListC *commandList, HistoryList *history, OpenFileList *openFileList, MemoryBlockList *memoryBlockList,ProcessList *processList, DirectoryList *directoryList) {
     char input[LENGTH_MAX_INPUT];  //Buffer para almacenar la entrada del usuario
     extern char **environ;         // Use the global environ variable
     char **envp = environ;         // Initialize envp with environ
@@ -71,12 +72,13 @@ void readInput(bool *finished, CommandListC *commandList, HistoryList *history, 
         int NumTrozos = SplitString(input, trozos);  //Divide la cadena en trozos (palabras) y devuelve el número de trozos
 
         if (NumTrozos > 0) {  //Si se han encontrado trozos, procesa la entrada
-            processInput(finished, &cadena, trozos, envp, commandList, history, openFileList, memoryBlockList, processList, directorylist);  //Procesa la entrada
+            processInput(finished, &cadena, trozos, envp, commandList, history, openFileList, memoryBlockList, processList, directoryList);  //Procesa la entrada
         }
     } else {
         perror("Error al leer la entrada");  //Imprime un mensaje de error si la lectura falla
     }
 }
+
 void InsertPredefinedCommands(CommandListC *commandList) {
     const char *Names[] = {
         "authors", "pid", "ppid", "cd", "date",
@@ -168,8 +170,8 @@ static int getCommandId(tItemH *str, char *pieces[], CommandListC *commandList, 
     }
     return -1;                                      //Si el comando no es válido, retorna -1
 }
-//Procesa el comando introducido //Se puede hacer privada??
-void processInput(bool *finished,tItemH *str,char *pieces[],char *envp[], CommandListC *commandList, HistoryList *history,OpenFileList *fileList, MemoryBlockList *memoryBlockList, ProcessList *processList, DirectoryList *directorylist) {
+
+void processInput(bool *finished,tItemH *str,char *pieces[],char *envp[], CommandListC *commandList, HistoryList *history,OpenFileList *fileList, MemoryBlockList *memoryBlockList, ProcessList *processList, DirectoryList *directoryList){
     switch (getCommandId(str,pieces,commandList,history)) {
         case 0:
             command_authors(pieces);
@@ -187,7 +189,7 @@ void processInput(bool *finished,tItemH *str,char *pieces[],char *envp[], Comman
             command_date(pieces);
             break;
         case 5:
-            command_historic(pieces,finished,commandList,history,fileList,memoryBlockList, processList, directorylist);
+            command_historic(pieces,finished,commandList,history,fileList,memoryBlockList, processList, directoryList);
             break;
         case 6:
             command_open(pieces,fileList);
@@ -276,33 +278,33 @@ void processInput(bool *finished,tItemH *str,char *pieces[],char *envp[], Comman
             break;
         case 35:
             command_fork(processList);
-            break;
+        break;
         case 36:
-            //command_search();
+            command_search(pieces,directoryList);
             break;
         case 37:
-            command_exec(pieces, directorylist);
+            //command_exec();
             break;
         case 38:
-            command_execpri(pieces, directorylist);
+            //command_execpri();
             break;
         case 39:
-            //command_fg();
+            command_fg(pieces, directoryList);
             break;
         case 40:
-            //command_fgpri();
+            command_fgpri(pieces, directoryList);
             break;
         case 41:
-            //command_back();
+            command_back(pieces, directoryList, processList);
             break;
         case 42:
-            //command_backpri();
+            command_backpri(pieces, directoryList, processList);
             break;
         case 43:
-            command_listjobs(processList);
+            //command_listjobs();
             break;
         case 44:
-            command_deljobs(processList);
+            //command_deljobs();
             break;
         case 45:
             command_help(pieces,commandList);
@@ -310,7 +312,7 @@ void processInput(bool *finished,tItemH *str,char *pieces[],char *envp[], Comman
         case 46:
         case 47:
         case 48:
-            command_exit(finished,fileList,history,commandList, memoryBlockList);
+            command_exit(finished,fileList,history,commandList, memoryBlockList, directoryList, processList);
             break;
         default:
             perror("Comando no válido, introduce \"help\" para ver los disponibles");
