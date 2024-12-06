@@ -81,6 +81,7 @@ tPosD SearchDirectoryD(char *p, DirectoryList D) {
             return t;
         }
     }
+    return DNULL;
 }
 
 

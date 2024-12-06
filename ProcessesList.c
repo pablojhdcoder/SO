@@ -142,12 +142,15 @@ void listJobs(ProcessList P) {
 
 //Remove los procesos terminados o signaled
 void delJobs(ProcessList *P) {
+    if (P == NULL || *P == PNULL) {
+        printf("Lista de procesos vacía\n");
+    }
     tPosP current = *P, prev = PNULL;
     while (current != PNULL) {
         if (current->data.status == FINISHED || current->data.status == SIGNALED) {
-            if (prev == PNULL) {
+            if (prev == PNULL) {  //nodo inicial
                 *P = current->next;
-            } else {
+            } else {  //nodo intermedio
                 prev->next = current->next;
             }
             tPosP temp = current;

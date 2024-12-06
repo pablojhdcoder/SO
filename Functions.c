@@ -283,10 +283,10 @@ void processInput(bool *finished,tItemH *str,char *pieces[],char *envp[], Comman
             command_search(pieces,directoryList);
             break;
         case 37:
-            //command_exec();
+            command_exec(pieces, directoryList);
             break;
         case 38:
-            //command_execpri();
+            command_execpri(pieces, directoryList);
             break;
         case 39:
             command_fg(pieces, directoryList);
@@ -301,10 +301,10 @@ void processInput(bool *finished,tItemH *str,char *pieces[],char *envp[], Comman
             command_backpri(pieces, directoryList, processList);
             break;
         case 43:
-            //command_listjobs();
+            command_listjobs(processList);
             break;
         case 44:
-            //command_deljobs();
+            command_deljobs(processList);
             break;
         case 45:
             command_help(pieces,commandList);
