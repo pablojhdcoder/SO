@@ -22,11 +22,11 @@ bool createNodeD(tPosD *p);
 tPosD firstD(DirectoryList D);
 tPosD nextD(tPosD p);
 tPosD lastPosD(DirectoryList D);
+char* GetDirectory(tPosD p);
 bool addDirectoryD(DirectoryList *D, const char *directory);
 void removeDirectoryD(DirectoryList *D, tPosD pos);
 char* SearchListFirstD(DirectoryList D);
 tPosD SearchDirectoryD(char *p, DirectoryList D);
-char* SearchListNext(tPosD *p);
 void ListDirectoryList(DirectoryList D);
 void cleanDirectoryList(DirectoryList *D);
 

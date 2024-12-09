@@ -30,6 +30,10 @@ tPosD lastPosD(DirectoryList D) {
     return p;
 }
 
+char* GetDirectory(tPosD p) {
+    return p->directory;
+}
+
 bool addDirectoryD(DirectoryList *D, const char *directory) {
     tPosD p, q;
     if (!createNodeD(&p)) {
@@ -68,6 +72,8 @@ void removeDirectoryD(DirectoryList *D, tPosD pos) {
     }
 }
 
+
+
 char* SearchListFirstD(DirectoryList D) {
     if (isEmptyListD(D)) {
         return NULL;
@@ -82,15 +88,6 @@ tPosD SearchDirectoryD(char *p, DirectoryList D) {
         }
     }
     return DNULL;
-}
-
-
-char* SearchListNext(tPosD *p) {
-    if (*p == DNULL || (*p)->next == DNULL) {
-        return NULL;
-    }
-    *p = (*p)->next;
-    return (*p)->directory;
 }
 
 void ListDirectoryList(DirectoryList D) {

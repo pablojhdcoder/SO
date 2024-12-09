@@ -54,11 +54,8 @@ static void AddToHistoryList(tItemH *command, HistoryList *lista){
 }
 
 //Función auxiliar para leer la entrada introducida por el usuario
-void readInput(bool *finished, CommandListC *commandList, HistoryList *history, OpenFileList *openFileList, MemoryBlockList *memoryBlockList,ProcessList *processList, DirectoryList *directoryList) {
+void readInput(char *env[], bool *finished, CommandListC *commandList, HistoryList *history, OpenFileList *openFileList, MemoryBlockList *memoryBlockList, ProcessList *processList, DirectoryList *directoryList){
     char input[LENGTH_MAX_INPUT];  //Buffer para almacenar la entrada del usuario
-    extern char **environ;         // Use the global environ variable
-    char **envp = environ;         // Initialize envp with environ
-
     if (fgets(input, LENGTH_MAX_INPUT, stdin) != NULL) {  //Lee la entrada del usuario desde la consola
         char *trozos[LENGTH_MAX_INPUT];  //Array para almacenar los trozos de la entrada
         tItemH cadena;                    //Variable para almacenar la cadena de entrada
@@ -72,7 +69,7 @@ void readInput(bool *finished, CommandListC *commandList, HistoryList *history, 
         int NumTrozos = SplitString(input, trozos);  //Divide la cadena en trozos (palabras) y devuelve el número de trozos
 
         if (NumTrozos > 0) {  //Si se han encontrado trozos, procesa la entrada
-            processInput(finished, &cadena, trozos, envp, commandList, history, openFileList, memoryBlockList, processList, directoryList);  //Procesa la entrada
+            processInput(finished, &cadena, trozos, env, commandList, history, openFileList, memoryBlockList, processList, directoryList);  //Procesa la entrada
         }
     } else {
         perror("Error al leer la entrada");  //Imprime un mensaje de error si la lectura falla
@@ -265,13 +262,13 @@ void processInput(bool *finished,tItemH *str,char *pieces[],char *envp[], Comman
             command_setuid(pieces);
             break;
         case 31:
-            command_showvar(pieces);
+            command_showvar(pieces, envp);
             break;
         case 32:
-            command_changevar(pieces);
+            command_changevar(pieces, envp);
             break;
         case 33:
-            command_subsvar(pieces);
+            command_subsvar(pieces, envp);
             break;
         case 34:
             command_environ(pieces, envp);
@@ -283,22 +280,22 @@ void processInput(bool *finished,tItemH *str,char *pieces[],char *envp[], Comman
             command_search(pieces,directoryList);
             break;
         case 37:
-            command_exec(pieces, directoryList);
+            command_exec(pieces,directoryList);
             break;
         case 38:
-            command_execpri(pieces, directoryList);
+            command_execpri(pieces,directoryList);
             break;
         case 39:
-            command_fg(pieces, directoryList);
+            command_fg(pieces + 1, envp, directoryList);
             break;
         case 40:
-            command_fgpri(pieces, directoryList);
+            command_fgpri(pieces + 1, envp, directoryList);
             break;
         case 41:
-            command_back(pieces, directoryList, processList);
+            command_back(pieces + 1, envp, directoryList, processList);
             break;
         case 42:
-            command_backpri(pieces, directoryList, processList);
+            command_backpri(pieces + 1, envp, directoryList, processList);
             break;
         case 43:
             command_listjobs(processList);
@@ -315,6 +312,6 @@ void processInput(bool *finished,tItemH *str,char *pieces[],char *envp[], Comman
             command_exit(finished,fileList,history,commandList, memoryBlockList, directoryList, processList);
             break;
         default:
-            perror("Comando no válido, introduce \"help\" para ver los disponibles");
+            executeExternalCommand(pieces, envp, directoryList);
     }
 }

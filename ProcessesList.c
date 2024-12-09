@@ -33,15 +33,17 @@ tPosP lastPosP(ProcessList P) {
 void getFormattedTimeP(char *buffer, size_t bufferSize) {
     time_t currentTime = time(NULL);
     struct tm *localTime = localtime(&currentTime);
-    strftime(buffer, bufferSize, "%Y-%m-%d %H:%M:%S", localTime);
+    strftime(buffer, bufferSize, "%Y/%m/%d %H:%M:%S", localTime);
 }
 
 bool addProcess(ProcessList *P, pid_t pid, const char *commandLine) {
+    struct passwd *pw = getpwuid(getuid()); // Obtén el nombre del usuario actual.
     tPosP p, q;
     if (!createNodeP(&p)) {
         return false;
     }
     p->data.pid = pid;
+    strncpy(p->data.owner, pw->pw_name, sizeof(p->data.owner) - 1);
     getFormattedTimeP(p->data.launchTime, sizeof(p->data.launchTime));
     p->data.status = ACTIVE;
     p->data.returnValue = 0;
@@ -87,70 +89,83 @@ void updateProcessStatus(ProcessList *P) {
     tPosP current = *P;
     int status;
     while (current != PNULL) {
-        pid_t result = waitpid(current->data.pid, &status, WNOHANG);
+        pid_t result = waitpid(current->data.pid, &status, WNOHANG | WUNTRACED | WCONTINUED);
         if (result == 0) {
             current = current->next;
             continue;
         }
         if (result == -1) {
-            perror("waitpid");
             current = current->next;
             continue;
         }
-        if (WIFEXITED(status)) {
-            current->data.status = FINISHED;
-            current->data.returnValue = WEXITSTATUS(status);
-        } else if (WIFSIGNALED(status)) {
-            current->data.status = SIGNALED;
-            current->data.returnValue = WTERMSIG(status);
-        } else if (WIFSTOPPED(status)) {
-            current->data.status = STOPPED;
-            current->data.returnValue = WSTOPSIG(status);
+        if (result == current->data.pid) {
+            if (WIFEXITED(status)) {
+                current->data.status = FINISHED;
+                current->data.returnValue = WEXITSTATUS(status);
+            } else if (WIFSIGNALED(status)) {
+                current->data.status = SIGNALED;
+                current->data.returnValue = WTERMSIG(status);
+            } else if (WIFSTOPPED(status)) {
+                current->data.status = STOPPED;
+                current->data.returnValue = WSTOPSIG(status);
+            } else if (WIFCONTINUED(status)) {
+                current->data.status = ACTIVE;
+                current->data.returnValue = 0;
+            }
+            current = current->next;
         }
-        current = current->next;
     }
 }
 
 //Detalles de los procesos en el background
 void listJobs(ProcessList P) {
-    updateProcessStatus(&P);
     tPosP current = P;
+    char *statusStr;
+    // Actualizar el estado de los procesos antes de imprimir
+    updateProcessStatus(&P);
+
     while (current != PNULL) {
-        printf("PID: %d\n", current->data.pid);
-        printf("Launch Time: %s\n", current->data.launchTime);
-        printf("Status: ");
+        // Obtener estado como cadena
         switch (current->data.status) {
-            case ACTIVE:
-                printf("ACTIVE\n");
-                break;
             case FINISHED:
-                printf("FINISHED (Return Value: %d)\n", current->data.returnValue);
+                statusStr = "TERMINADO";
+                break;
+            case ACTIVE:
+                statusStr = "ACTIVO";
                 break;
             case STOPPED:
-                printf("STOPPED (Signal: %d)\n", current->data.returnValue);
+                statusStr = "DETENIDO";
                 break;
             case SIGNALED:
-                printf("SIGNALED (Signal: %d)\n", current->data.returnValue);
+                statusStr = "SEÑALADO";
                 break;
+            default:
+                statusStr = "DESCONOCIDO";
         }
-        printf("Command Line: %s\n", current->data.commandLine);
-        printf("Priority: %d\n", getpriority(PRIO_PROCESS, current->data.pid));
-        printf("\n");
+
+        // Imprimir la información del proceso
+        printf("%6d %10s p=%d %s %s (%03d) %s\n",
+               current->data.pid,                   // PID del proceso
+               current->data.owner,                // Propietario del proceso
+               getpriority(PRIO_PROCESS, current->data.pid),             // Prioridad del proceso
+               current->data.launchTime,                         // Fecha y hora de inicio
+               statusStr,                          // Estado del proceso
+               current->data.returnValue,          // Valor de retorno o señal
+               current->data.commandLine);         // Línea de comandos
+
         current = current->next;
     }
 }
 
 //Remove los procesos terminados o signaled
 void delJobs(ProcessList *P) {
-    if (P == NULL || *P == PNULL) {
-        printf("Lista de procesos vacía\n");
-    }
+    updateProcessStatus(P);
     tPosP current = *P, prev = PNULL;
     while (current != PNULL) {
         if (current->data.status == FINISHED || current->data.status == SIGNALED) {
-            if (prev == PNULL) {  //nodo inicial
+            if (prev == PNULL) {
                 *P = current->next;
-            } else {  //nodo intermedio
+            } else {
                 prev->next = current->next;
             }
             tPosP temp = current;

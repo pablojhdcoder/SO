@@ -72,21 +72,22 @@ void command_recurse(char *pieces[]);
 
 void command_getuid();
 void command_setuid(char *pieces[]);
-void command_showvar(char *pieces[]);
-void command_changevar(char *pieces[]);
-void command_subsvar(char *pieces[]);
+void command_showvar(char *pieces[], char *env[]);
+void command_changevar(char *pieces[], char *env[]);
+void command_subsvar(char *pieces[], char *env[]);
 void command_environ(char *pieces[], char *envp[]);
 void command_fork(ProcessList *P);
 void command_search(char *pieces[], DirectoryList *directoryList);
 void command_exec(char *pieces[], DirectoryList *directoryList);
-void command_execpri(char *pieces[], DirectoryList *directoryList);
-void command_fg(char *pieces[],  DirectoryList *directoryList);
-void command_fgpri(char *pieces[], DirectoryList *directoryList);
-void command_back(char *pieces[], DirectoryList *directoryList, ProcessList *processList);
-void command_backpri();
+void command_execpri(char *pieces[], DirectoryList *directorylist);
+void command_fg(char *pieces[], char *env[],  DirectoryList *directoryList);
+void command_fgpri(char *pieces[], char *env[], DirectoryList *directoryList);
+void command_back(char *pieces[], char *env[], DirectoryList *directoryList, ProcessList *processList);
+void command_backpri(char *pieces[], char *env[], DirectoryList *directoryList, ProcessList *processList);
 void command_listjobs(ProcessList *P);
 void command_deljobs(ProcessList *P);
 
+void executeExternalCommand(char *pieces[], char *env[], DirectoryList *directoryList);
 
 
 #endif //COMMANDS_H

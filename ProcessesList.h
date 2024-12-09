@@ -9,6 +9,8 @@
 #include <sys/wait.h>  // Para waitpid()
 #include <ctype.h>   // Para isdigit()
 #include <sys/resource.h> // Para getpriority()
+#include <pwd.h>
+#include <unistd.h>
 
 #define PNULL NULL
 
@@ -21,6 +23,7 @@ typedef enum {
 
 typedef struct {
     pid_t pid;
+    char owner[32];
     char launchTime[20];
     ProcessStatus status;
     int returnValue;

@@ -11,19 +11,32 @@
 
 /*Función principal del programa donde se inicializan las listas de comandos, historial y archivos abiertos,
 y se ejecuta el bucle principal para leer la entrada del usuario hasta que se indique que el programa ha terminado.*/
-int main(void) {
+
+int main(int argc, char *argv[], char *envp[]){
+    (void)argc; // Silencia la advertencia de "parámetros no usados"
+    (void)argv; // Silencia la advertencia de "parámetros no usados"
+
     printf("Iniciando shell..\n");      //Indicativo de que se inicia otro proceso, otra ejecución de la shell
+
     bool finished = false;  //Variable que indica si el programa ha terminado.
-    CommandListC cmdList;  //Lista de comandos.
-    HistoryList historyList;  //Lista que almacena el historial de comandos ejecutados.
-    OpenFileList openFileList;  //Lista que gestiona los archivos abiertos.
+
+    // Declaración de las listas que gestionarán diversos datos.
+    CommandListC cmdList;
+    HistoryList historyList;
+    OpenFileList openFileList;
     MemoryBlockList memoryBlockList;
     ProcessList processList;
     DirectoryList directoryList;
-    InitializateShellLists(&cmdList,&historyList,&openFileList,&memoryBlockList, &processList, &directoryList);
-    while (!finished) {  //Bucle principal que se ejecuta mientras el programa no haya finalizado.
-        printPrompt();  //Imprime el prompt para que el usuario ingrese un comando.
-        readInput(&finished, &cmdList, &historyList, &openFileList, &memoryBlockList, &processList, &directoryList);  //Lee la entrada del usuario y procesa el comando.
+
+    // Inicialización o definición de las listas de la shell.
+    InitializateShellLists(&cmdList, &historyList, &openFileList,
+                           &memoryBlockList, &processList, &directoryList);
+
+    //Bucle principal que se ejecuta mientras el programa no haya finalizado.
+    while (!finished) {
+        printPrompt();
+        readInput(envp,&finished, &cmdList, &historyList,
+                &openFileList, &memoryBlockList, &processList, &directoryList);  //Lee la entrada del usuario y procesa el comando.
     }
 
     return 0;  //Fin de la función.
