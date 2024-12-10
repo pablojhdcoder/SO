@@ -280,10 +280,10 @@ void processInput(bool *finished,tItemH *str,char *pieces[],char *envp[], Comman
             command_search(pieces,directoryList);
             break;
         case 37:
-            command_exec(pieces,directoryList);
+            command_exec(pieces + 1,directoryList, envp);
             break;
         case 38:
-            command_execpri(pieces,directoryList);
+            command_execpri(pieces + 1,directoryList, envp);
             break;
         case 39:
             command_fg(pieces + 1, envp, directoryList);

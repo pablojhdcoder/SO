@@ -19,6 +19,7 @@
 #include <sys/shm.h>  // Para shmget(), shmat(), shmdt(), shmctl()
 #include <sys/wait.h>  // Para waitpid()
 #include <ctype.h>   // Para isdigit()
+#include <sys/resource.h> // Para getpriority()
 
 #include "CommandList.h"
 #include "HistoryList.h"
@@ -78,8 +79,8 @@ void command_subsvar(char *pieces[], char *env[]);
 void command_environ(char *pieces[], char *envp[]);
 void command_fork(ProcessList *P);
 void command_search(char *pieces[], DirectoryList *directoryList);
-void command_exec(char *pieces[], DirectoryList *directoryList);
-void command_execpri(char *pieces[], DirectoryList *directorylist);
+void command_exec(char *pieces[], DirectoryList *directoryList, char *env[]);
+void command_execpri(char *pieces[], DirectoryList *directorylist, char *env[]);
 void command_fg(char *pieces[], char *env[],  DirectoryList *directoryList);
 void command_fgpri(char *pieces[], char *env[], DirectoryList *directoryList);
 void command_back(char *pieces[], char *env[], DirectoryList *directoryList, ProcessList *processList);

@@ -1870,6 +1870,7 @@ char * Ejecutable (char *s, DirectoryList *directoryList)
     //Si el nombre del ejecutable es nulo o la lista de rutas está vacía retornamos s.
     if (s==NULL || (p=SearchListFirstD(*directoryList))==NULL)
         return s;
+    // Si es un pathname absoluto o relativo directo, retornamos como está.
     if (s[0]=='/' || !strncmp (s,"./",2) || !strncmp (s,"../",3))
         return s;        /*is an absolute pathname*/
 
@@ -1910,31 +1911,108 @@ int Execpve(char *tr[], char **NewEnv, long int * pprio, DirectoryList *director
         return execve (p, tr, NewEnv);
     }
 }
-
-void command_exec(char *pieces[], DirectoryList *directoryList) {
+static void liberarEnvironVars(const int *environVarsCount, char *environVars[]) {
+    for (int i = 0; i < *environVarsCount; i++) {
+        free(environVars[i]); // Liberar cada cadena.
+    }
+}
+void command_exec(char *pieces[], DirectoryList *directoryList, char *env[]) {
     if (pieces[1] == NULL) {
         fprintf(stderr, "Imposible ejecutar: Bad address\n");
         return;
     }
-    long int pprio = 0; // Assuming pprio is initialized to 0 or some default value
-    if (Execpve(&pieces[1], pieces, &pprio, directoryList) == -1) {
-        perror("Imposible ejecutar: Bad address");
+    pid_t pid;
+    char *environVars[64]; // Buffer for environment variables.
+    char *arguments[64]; // Buffer for executable arguments.
+    int environVarsCount = 0, argumentsCount = 0, EnvIndex = 0;
+    char *executableName = NULL;
+
+    // Separate environment variables and arguments.
+    for (int i = 1; pieces[i] != NULL; i++) {
+        EnvIndex = BuscarVariable(pieces[i], env);
+        if (EnvIndex != -1) {
+            // Reconstruct the complete variable: "NAME=value".
+            environVars[environVarsCount] = strdup(env[EnvIndex]);
+            environVarsCount++;
+        } else {
+            if (argumentsCount == 0) {
+                executableName = pieces[i]; // First argument is the executable.
+            }
+            arguments[argumentsCount++] = pieces[i];
+        }
+    }
+
+    environVars[environVarsCount] = NULL; // Terminate environment variables list.
+
+    // Ensure arguments[0] contains the executable name.
+    if (executableName != NULL) {
+        arguments[0] = executableName;
+    } else {
+        fprintf(stderr, "Error: No se especificó un ejecutable.\n");
+        return;
+    }
+
+    arguments[argumentsCount] = NULL; // Terminate arguments list.
+
+    // Execute the command.
+    if ((pid = fork()) == 0) {
+        // Proceso hijo: Ejecutar el programa.
+        if (Execpve(arguments, environVarsCount > 0 ? environVars : NULL, NULL, directoryList) == -1) {
+            perror("Error ejecutando programa");
+            liberarEnvironVars(&environVarsCount, environVars);
+            exit(EXIT_FAILURE);
+        }
     }
 }
 
-void command_execpri(char *pieces[], DirectoryList *directorylist) {
+void command_execpri(char *pieces[], DirectoryList *directorylist, char *env[]) {
     if (pieces[1] == NULL || pieces[2] == NULL) {
         fprintf(stderr, "Uso: execpri <prio> <prog> <args...>\n");
         return;
     }
-
+    pid_t pid;
     long int priority = strtol(pieces[1], NULL, 10);
-    long int *pprio = &priority;
+    char *environVars[64]; // Buffer for environment variables.
+    char *arguments[64]; // Buffer for executable arguments.
+    int environVarsCount = 0, argumentsCount = 0, EnvIndex = 0;
+    char *executableName = NULL;
 
-    char **progArgs = &pieces[2];
+    // Separate environment variables and arguments.
+    for (int i = 2; pieces[i] != NULL; i++) {
+        EnvIndex = BuscarVariable(pieces[i], env);
+        if (EnvIndex != -1) {
+            // Reconstruct the complete variable: "NAME=value".
+            environVars[environVarsCount] = strdup(env[EnvIndex]);
+            environVarsCount++;
+        } else {
+            if (argumentsCount == 0) {
+                executableName = pieces[i]; // First argument is the executable.
+            }
+            arguments[argumentsCount++] = pieces[i];
+        }
+    }
 
-    if (Execpve(progArgs, NULL, pprio, directorylist) == -1) {
-        perror("Imposible ejecutar");
+    environVars[environVarsCount] = NULL; // Terminate environment variables list.
+
+    // Ensure arguments[0] contains the executable name.
+    if (executableName != NULL) {
+        arguments[0] = executableName;
+    } else {
+        fprintf(stderr, "Error: No se especificó un ejecutable.\n");
+        return;
+    }
+
+    arguments[argumentsCount] = NULL; // Terminate arguments list.
+
+    // Execute the command with the specified priority.
+    if ((pid = fork()) == 0) {
+        // Proceso hijo: Ejecutar el programa.
+        if (Execpve(arguments, environVarsCount > 0 ? environVars : NULL, &priority, directorylist) == -1) {
+            perror("Imposible ejecutar");
+            for (int i = 0; i < environVarsCount; i++) {
+                free(environVars[i]); // Free each environment variable string.
+            }
+        }
     }
 }
 
@@ -2029,11 +2107,7 @@ char *NombreSenal(int sen)  /*devuelve el nombre senal a partir de la senal*/
 /*Revisar valor de retorno porque cuando, back xterm -fg green -bg black -e /usr/local/bin/ksh, falla y se guarda en lista
  * porque en el valor de retorno está uno en vez de 255 como en shell de referencia */
 
-static void liberarEnvironVars(const int *environVarsCount, char *environVars[]) {
-    for (int i = 0; i < *environVarsCount; i++) {
-        free(environVars[i]); // Liberar cada cadena.
-    }
-}
+
 
 void command_fg(char *pieces[], char *env[], DirectoryList *directoryList) {
     pid_t pid;
