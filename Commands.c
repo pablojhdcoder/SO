@@ -1683,24 +1683,34 @@ extern char **environ;         // Use the global environ variable
 
 //mostra el valor y la direccion de las variables de entorno especificadas por el usuario
 void command_showvar(char *pieces[], char *env[]) {
+
     if (pieces[1] == NULL) {
-        // Imprimir todas las variables de entorno
+        // Mostrar todas las variables de entorno
         for (int i = 0; env[i] != NULL; i++) {
             printf("%p->main arg3[3][%d]=(%p) %s\n", (void *)&env[i], i, (void *)env[i], env[i]);
         }
     } else {
-        int pos = BuscarVariable(pieces[1], env);
-        if (pos != -1) {
+        int pos;
+
+        if ((pos = BuscarVariable(pieces[1], env)) != -1) {
+            // Caso en el que la variable se encuentra en "env"
             char *value = getenv(pieces[1]);
             printf("Con arg3 main %s=%s(%p) @%p\n", pieces[1], value, (void *)value, (void *)&env[pos]);
             printf("  Con environ %s=%s(%p) @%p\n", pieces[1], value, (void *)value, (void *)environ[pos]);
             printf("   Con getenv %s(%p)\n", value, (void *)value);
+        } else if ((pos = BuscarVariable(pieces[1], environ)) != -1) {
+            // Caso en el que la variable se encuentra en "environ"
+            char *value = getenv(pieces[1]);
+            printf("Con environ %s=%s(%p) @%p\n", pieces[1], value, (void *)value, (void *)&environ[pos]);
+            printf("   Con getenv %s(%p)\n", value, (void *)value);
         } else {
+            // Caso en el que la variable no se encuentra
             printf("Variable: %s no encontrada en el entorno\n", pieces[1]);
         }
     }
 }
-//la condicion no esta bien, si es creada por changevar -p no ensena pieces[3]
+
+
 void command_changevar(char *pieces[], char *env[]) {
     if (pieces[1] == NULL || pieces[2] == NULL || pieces[3] == NULL) {
         fprintf(stderr, "Uso: changevar [-a|-e|-p] var valor\n");
@@ -1730,7 +1740,6 @@ void command_changevar(char *pieces[], char *env[]) {
         fprintf(stderr, "Error\n");
     }
 }
-
 
 void command_subsvar(char *pieces[],char *env[]) {
     if (pieces[1] == NULL || pieces[2] == NULL || pieces[3] == NULL || pieces[4] == NULL) {
@@ -1921,9 +1930,9 @@ static void liberarEnvironVars(const int *environVarsCount, char *environVars[])
 }
 void command_exec(char *pieces[], DirectoryList *directoryList, char *env[]) {
     char *environVars[64]; // Buffer para las variables de entorno.
-    char *arguments[64];   // Buffer para los argumentos del ejecutable.
     int environVarsCount = 0, argumentsCount = 0;
     char *executableName = NULL;
+    char *arguments[64];   // Buffer para los argumentos del ejecutable.
 
     // Separar variables de entorno y argumentos.
     for (int i = 0; pieces[i] != NULL; i++) {
@@ -2233,9 +2242,8 @@ void command_fgpri(char *pieces[], char *env[], DirectoryList *directoryList) {
         liberarEnvironVars(&environVarsCount, environVars);
         perror("Error creando el proceso");
     }
-
-
 }
+
 void command_back(char *pieces[], char *env[], DirectoryList *directoryList, ProcessList *processList) {
     pid_t pid;
     char *environVars[64]; // Buffer para las variables de entorno.
