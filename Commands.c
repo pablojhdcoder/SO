@@ -1165,19 +1165,6 @@ static void do_DeallocateAdd (char *args[], MemoryBlockList *memblocks) {
     }
 }
 
-/*-> deallocate -malloc
-******Lista de bloques asignados malloc para el proceso 22010
--> deallocate -mmap
-******Lista de bloques asignados mmap para el proceso 22010
--> deallocate -shared
-******Lista de bloques asignados shared para el proceso 22010
--> deallocate -delkey
-      delkey necesita clave_valida
--> deallocate
-******Lista de bloques asignados para el proceso 22010
-*/
-
-
 void command_deallocate(char *pieces[],MemoryBlockList *memblocks) {
     if (pieces[1] != NULL) {
         if (strcmp(pieces[1], "-malloc") == 0) {
@@ -1607,8 +1594,13 @@ static long int getID(char *id) {
     return n;
 }
 
-//Cambiar el UID solo es posible para el superusuario (root) o para ciertos procesos con permisos especiales.
-//Por ello probar con su cuando se añada la opcion de exec
+//Credencial real -> es la del usuario que ejecuta el programa
+//Credencial efectiva -> es la del propietario del archivo ejecutable (p3)
+/*
+ *  Cuando un programa con el bit SUID (rwsr-xr-x) es ejecutado,
+ *  el UID efectivo se establece al propietario del archivo,
+ *  mientras que el UID real permanece igual.
+ */
 void command_setuid(char *pieces[]) {
     if (pieces[1] != NULL) {
         if (strcmp(pieces[1], "-l") == 0) {
@@ -1683,7 +1675,6 @@ extern char **environ;         // Use the global environ variable
 
 //mostra el valor y la direccion de las variables de entorno especificadas por el usuario
 void command_showvar(char *pieces[], char *env[]) {
-
     if (pieces[1] == NULL) {
         // Mostrar todas las variables de entorno
         for (int i = 0; env[i] != NULL; i++) {
@@ -1691,9 +1682,7 @@ void command_showvar(char *pieces[], char *env[]) {
         }
     } else {
         int pos;
-
         if ((pos = BuscarVariable(pieces[1], env)) != -1) {
-            // Caso en el que la variable se encuentra en "env"
             char *value = getenv(pieces[1]);
             printf("Con arg3 main %s=%s(%p) @%p\n", pieces[1], value, (void *)value, (void *)&env[pos]);
             printf("  Con environ %s=%s(%p) @%p\n", pieces[1], value, (void *)value, (void *)environ[pos]);
@@ -1709,7 +1698,6 @@ void command_showvar(char *pieces[], char *env[]) {
         }
     }
 }
-
 
 void command_changevar(char *pieces[], char *env[]) {
     if (pieces[1] == NULL || pieces[2] == NULL || pieces[3] == NULL) {
@@ -1740,6 +1728,7 @@ void command_changevar(char *pieces[], char *env[]) {
         fprintf(stderr, "Error\n");
     }
 }
+
 
 void command_subsvar(char *pieces[],char *env[]) {
     if (pieces[1] == NULL || pieces[2] == NULL || pieces[3] == NULL || pieces[4] == NULL) {
@@ -1882,7 +1871,6 @@ char * Ejecutable (char *s, DirectoryList *directoryList)
     //Si el nombre del ejecutable es nulo o la lista de rutas está vacía retornamos s.
     if (s==NULL || (p=SearchListFirstD(*directoryList))==NULL)
         return s;
-    // Si es un pathname absoluto o relativo directo, retornamos como está.
     if (s[0]=='/' || !strncmp (s,"./",2) || !strncmp (s,"../",3))
         return s;        /*is an absolute pathname*/
 
@@ -1923,11 +1911,13 @@ int Execpve(char *tr[], char **NewEnv, long int * pprio, DirectoryList *director
         return execve (p, tr, NewEnv);
     }
 }
+
 static void liberarEnvironVars(const int *environVarsCount, char *environVars[]) {
     for (int i = 0; i < *environVarsCount; i++) {
         free(environVars[i]); // Liberar cada cadena.
     }
 }
+
 void command_exec(char *pieces[], DirectoryList *directoryList, char *env[]) {
     char *environVars[64]; // Buffer para las variables de entorno.
     int environVarsCount = 0, argumentsCount = 0;
@@ -1954,6 +1944,7 @@ void command_exec(char *pieces[], DirectoryList *directoryList, char *env[]) {
     // Asegurarse de que arguments[0] contenga el nombre del ejecutable.
     if (executableName == NULL) {
         fprintf(stderr, "Error: No se especificó un ejecutable.\n");
+        liberarEnvironVars(&environVarsCount, environVars);
         return;
     }
 
@@ -1963,24 +1954,25 @@ void command_exec(char *pieces[], DirectoryList *directoryList, char *env[]) {
     if (Execpve(arguments, environVarsCount > 0 ? environVars : NULL, NULL, directoryList) == -1) {
         perror("Error ejecutando programa");
         liberarEnvironVars(&environVarsCount, environVars);
-        exit(EXIT_FAILURE);
+        _exit(-1);
     }
+    liberarEnvironVars(&environVarsCount, environVars);
 }
 
 void command_execpri(char *pieces[], DirectoryList *directoryList, char *env[]) {
-    if (pieces[1] == NULL || pieces[2] == NULL) {
+    if (pieces[0] == NULL || pieces[1] == NULL) {
         fprintf(stderr, "Uso: execpri <prio> <prog> <args...>\n");
         return;
     }
 
-    long int priority = strtol(pieces[1], NULL, 10);
+    long int priority = strtol(pieces[0], NULL, 10);
     char *environVars[64]; // Buffer para las variables de entorno.
     char *arguments[64];   // Buffer para los argumentos del ejecutable.
     int environVarsCount = 0, argumentsCount = 0;
     char *executableName = NULL;
 
     // Separar variables de entorno y argumentos.
-    for (int i = 2; pieces[i] != NULL; i++) {
+    for (int i = 1; pieces[i] != NULL; i++) {
         int envIndex = BuscarVariable(pieces[i], env);
         if (envIndex != -1) {
             // Reconstruir la variable completa: "NOMBRE=valor".
@@ -1999,26 +1991,21 @@ void command_execpri(char *pieces[], DirectoryList *directoryList, char *env[]) 
     // Asegurarse de que arguments[0] contenga el nombre del ejecutable.
     if (executableName == NULL) {
         fprintf(stderr, "Error: No se especificó un ejecutable.\n");
+        liberarEnvironVars(&environVarsCount, environVars);
         return;
     }
 
     arguments[argumentsCount] = NULL; // Terminar lista de argumentos.
 
-    // Ajustar la prioridad del proceso actual.
-    if (setpriority(PRIO_PROCESS, 0, priority) == -1) {
-        perror("Error ajustando la prioridad del proceso");
-        return;
-    }
-
     // Reemplazar el proceso actual con el nuevo ejecutable.
-    if (Execpve(arguments, environVarsCount > 0 ? environVars : NULL, NULL, directoryList) == -1) {
+    if (Execpve(arguments, environVarsCount > 0 ? environVars : NULL, &priority, directoryList) == -1) {
         perror("Error ejecutando programa");
-        for (int i = 0; i < environVarsCount; i++) {
-            free(environVars[i]); // Liberar cada variable de entorno.
-        }
-        exit(EXIT_FAILURE);
+        liberarEnvironVars(&environVarsCount, environVars);
+        _exit(-1);
     }
+    liberarEnvironVars(&environVarsCount, environVars);
 }
+
 
 struct SEN {
     char *nombre; // Nombre de la señal, por ejemplo "INT"
@@ -2111,8 +2098,6 @@ char *NombreSenal(int sen)  /*devuelve el nombre senal a partir de la senal*/
 /*Revisar valor de retorno porque cuando, back xterm -fg green -bg black -e /usr/local/bin/ksh, falla y se guarda en lista
  * porque en el valor de retorno está uno en vez de 255 como en shell de referencia */
 
-
-
 void command_fg(char *pieces[], char *env[], DirectoryList *directoryList) {
     pid_t pid;
     char *environVars[64]; // Buffer para las variables de entorno.
@@ -2153,7 +2138,7 @@ void command_fg(char *pieces[], char *env[], DirectoryList *directoryList) {
         if (Execpve(arguments, environVarsCount > 0 ? environVars : NULL, NULL, directoryList) == -1) {
             perror("Error ejecutando programa");
             liberarEnvironVars(&environVarsCount, environVars);
-            exit(EXIT_FAILURE);
+            _exit(-1);
         }
     } else if (pid > 0) {
         // Proceso padre: Esperar a que el hijo termine.
@@ -2226,7 +2211,7 @@ void command_fgpri(char *pieces[], char *env[], DirectoryList *directoryList) {
         if (Execpve(arguments, environVarsCount > 0 ? environVars : NULL, &prio, directoryList) == -1) {
             perror("Error ejecutando programa");
             liberarEnvironVars(&environVarsCount, environVars);
-            exit(EXIT_FAILURE);
+            _exit(-1);
         }
     } else if (pid > 0) {
         // Proceso padre: Esperar a que el hijo termine.
@@ -2242,8 +2227,9 @@ void command_fgpri(char *pieces[], char *env[], DirectoryList *directoryList) {
         liberarEnvironVars(&environVarsCount, environVars);
         perror("Error creando el proceso");
     }
-}
 
+
+}
 void command_back(char *pieces[], char *env[], DirectoryList *directoryList, ProcessList *processList) {
     pid_t pid;
     char *environVars[64]; // Buffer para las variables de entorno.
@@ -2291,8 +2277,9 @@ void command_back(char *pieces[], char *env[], DirectoryList *directoryList, Pro
         if (Execpve(arguments, environVarsCount > 0 ? environVars : NULL, NULL, directoryList) == -1) {
             perror("Error ejecutando programa");
             liberarEnvironVars(&environVarsCount, environVars);
-            exit(EXIT_FAILURE);
+            _exit(-1);
         }
+        liberarEnvironVars(&environVarsCount, environVars);
 
     }else if (pid > 0) {
         // Proceso padre: Añadir proceso a la lista.
@@ -2365,8 +2352,9 @@ void command_backpri(char *pieces[], char *env[], DirectoryList *directoryList, 
         if (Execpve(arguments, environVarsCount > 0 ? environVars : NULL, &prio, directoryList) == -1) {
             perror("Error ejecutando programa");
             liberarEnvironVars(&environVarsCount, environVars);
-            exit(EXIT_FAILURE);
+            _exit(-1);
         }
+        liberarEnvironVars(&environVarsCount, environVars);
     }else if (pid > 0) {
         // Proceso padre: Añadir proceso a la lista.
         if (!addProcess(processList, pid, fullcommand)) {
@@ -2448,3 +2436,6 @@ Saliendo de la shell...
 ==14368== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)
 
  */
+
+
+

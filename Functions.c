@@ -124,9 +124,7 @@ void InsertPredefinedCommands(CommandListC *commandList) {
         " df addr cont Transfiere cont bytes desde la direccion addr al fichero descrito por df",
         " [n] Invoca a la funcion recursiva n veces",
         " Muestra las credenciales del proceso que ejecuta el shell",
-        " [-l] id Cambia las credenciales del proceso que ejecuta el shell\n"
-        "\tid: establece la credencial al valor numerico id\n"
-        "\t-l id: establece la credencial a login id",
+        " [-l] id Cambia las credenciales del proceso que ejecuta el shell",
         " var Muestra el valor y las direcciones de la variable de entorno var",
         " [-a|-e|-p] var valor Cambia el valor de una variable de entorno",
         " [-a|-e] var1 var2 valor Sustituye la variable de entorno var1",
