@@ -1684,8 +1684,8 @@ void command_showvar(char *pieces[], char *env[]) {
         int pos;
         if ((pos = BuscarVariable(pieces[1], env)) != -1) {
             char *value = getenv(pieces[1]);
-            printf("Con arg3 main %s=%s(%p) @%p\n", pieces[1], value, (void *)value, (void *)&env[pos]);
-            printf("  Con environ %s=%s(%p) @%p\n", pieces[1], value, (void *)value, (void *)environ[pos]);
+            printf("Con arg3 main %s=%s(%p) @%p\n", pieces[1], value, (void *)env[pos], (void *)&env[pos]);
+            printf("  Con environ %s=%s(%p) @%p\n", pieces[1], value, (void *)environ[pos], (void *)&environ[pos]);
             printf("   Con getenv %s(%p)\n", value, (void *)value);
         } else if ((pos = BuscarVariable(pieces[1], environ)) != -1) {
             // Caso en el que la variable se encuentra en "environ"
@@ -2007,97 +2007,6 @@ void command_execpri(char *pieces[], DirectoryList *directoryList, char *env[]) 
 }
 
 
-struct SEN {
-    char *nombre; // Nombre de la señal, por ejemplo "INT"
-    int senal;    // Número de la señal, por ejemplo SIGINT
-};
-
-
-/*las siguientes funciones nos permiten obtener el nombre de una senal a partir
-del nÃºmero y viceversa */
-static struct SEN sigstrnum[]={
-    {"HUP", SIGHUP},
-    {"INT", SIGINT},
-    {"QUIT", SIGQUIT},
-    {"ILL", SIGILL},
-    {"TRAP", SIGTRAP},
-    {"ABRT", SIGABRT},
-    {"IOT", SIGIOT},
-    {"BUS", SIGBUS},
-    {"FPE", SIGFPE},
-    {"KILL", SIGKILL},
-    {"USR1", SIGUSR1},
-    {"SEGV", SIGSEGV},
-    {"USR2", SIGUSR2},
-    {"PIPE", SIGPIPE},
-    {"ALRM", SIGALRM},
-    {"TERM", SIGTERM},
-    {"CHLD", SIGCHLD},
-    {"CONT", SIGCONT},
-    {"STOP", SIGSTOP},
-    {"TSTP", SIGTSTP},
-    {"TTIN", SIGTTIN},
-    {"TTOU", SIGTTOU},
-    {"URG", SIGURG},
-    {"XCPU", SIGXCPU},
-    {"XFSZ", SIGXFSZ},
-    {"VTALRM", SIGVTALRM},
-    {"PROF", SIGPROF},
-    {"WINCH", SIGWINCH},
-    {"IO", SIGIO},
-    {"SYS", SIGSYS},
-/*senales que no hay en todas partes*/
-#ifdef SIGPOLL
-    {"POLL", SIGPOLL},
-#endif
-#ifdef SIGPWR
-    {"PWR", SIGPWR},
-#endif
-#ifdef SIGEMT
-    {"EMT", SIGEMT},
-#endif
-#ifdef SIGINFO
-    {"INFO", SIGINFO},
-#endif
-#ifdef SIGSTKFLT
-    {"STKFLT", SIGSTKFLT},
-#endif
-#ifdef SIGCLD
-    {"CLD", SIGCLD},
-#endif
-#ifdef SIGLOST
-    {"LOST", SIGLOST},
-#endif
-#ifdef SIGCANCEL
-    {"CANCEL", SIGCANCEL},
-#endif
-#ifdef SIGTHAW
-    {"THAW", SIGTHAW},
-#endif
-#ifdef SIGFREEZE
-    {"FREEZE", SIGFREEZE},
-#endif
-#ifdef SIGLWP
-    {"LWP", SIGLWP},
-#endif
-#ifdef SIGWAITING
-    {"WAITING", SIGWAITING},
-#endif
-     {NULL,-1},
-    };    /*fin array sigstrnum */
-
-char *NombreSenal(int sen)  /*devuelve el nombre senal a partir de la senal*/
-{			/* para sitios donde no hay sig2str*/
-    int i;
-    for (i=0; sigstrnum[i].nombre!=NULL; i++)
-        if (sen==sigstrnum[i].senal)
-            return sigstrnum[i].nombre;
-    return ("SIGUNKNOWN");
-}
-
-/*Revisar valor de retorno porque cuando, back xterm -fg green -bg black -e /usr/local/bin/ksh, falla y se guarda en lista
- * porque en el valor de retorno está uno en vez de 255 como en shell de referencia */
-
 void command_fg(char *pieces[], char *env[], DirectoryList *directoryList) {
     pid_t pid;
     char *environVars[64]; // Buffer para las variables de entorno.
@@ -2147,7 +2056,7 @@ void command_fg(char *pieces[], char *env[], DirectoryList *directoryList) {
             perror("Error esperando al proceso hijo");
         } else if (WIFSIGNALED(status)) {
             int signal = WTERMSIG(status);
-            printf("El proceso fue terminado por señal: %s\n", NombreSenal(signal));
+            printf("El proceso fue terminado por señal: %d\n",signal);
         }
         liberarEnvironVars(&environVarsCount, environVars);
     } else {
@@ -2220,7 +2129,7 @@ void command_fgpri(char *pieces[], char *env[], DirectoryList *directoryList) {
             perror("Error esperando al proceso hijo");
         } else if (WIFSIGNALED(status)) {
             int signal = WTERMSIG(status);
-            printf("El proceso fue terminado por señal: %s\n", NombreSenal(signal));
+            printf("El proceso fue terminado por señal: %d\n", signal);
         }
         liberarEnvironVars(&environVarsCount, environVars);
     } else {
@@ -2386,56 +2295,5 @@ void command_deljobs(ProcessList *processList) {
 void executeExternalCommand(char *pieces[], char *env[], DirectoryList *directoryList) {
     command_fg(pieces, env, directoryList);
 }
-
-/*QUE COJONES
- * pablojhd@asus:~/Escritorio/SO/P01$ valgrind --leak-check=full ./p3
-==14368== Memcheck, a memory error detector
-==14368== Copyright (C) 2002-2022, and GNU GPL'd, by Julian Seward et al.
-==14368== Using Valgrind-3.22.0 and LibVEX; rerun with -h for copyright info
-==14368== Command: ./p3
-==14368==
-Iniciando shell..
-→ back xterm -fg green -bg black -e /usr/local/bin/ksh
-Error ejecutando programa: No such file or directory
-==14370==
-==14370== HEAP SUMMARY:
-==14370==     in use at exit: 21,788 bytes in 53 blocks
-==14370==   total heap usage: 57 allocs, 4 frees, 25,332 bytes allocated
-==14370==
-==14370== LEAK SUMMARY:
-==14370==    definitely lost: 0 bytes in 0 blocks
-==14370==    indirectly lost: 0 bytes in 0 blocks
-==14370==      possibly lost: 0 bytes in 0 blocks
-==14370==    still reachable: 21,788 bytes in 53 blocks
-==14370==         suppressed: 0 bytes in 0 blocks
-==14370== Reachable blocks (those to which a pointer was found) are not shown.
-==14370== To see them, rerun with: --leak-check=full --show-leak-kinds=all
-==14370==
-==14370== For lists of detected and suppressed errors, rerun with: -s
-==14370== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)
-→ listjobs
- 14370   pablojhd p=-1 2024/12/09 21:21:02 TERMINADO (001) xterm -fg green -bg black -e /usr/local/bin/ksh
-→ search -path
-Importados 10 directorios en la ruta de busqueda
-→ back xterm -fg green -bg black -e /usr/local/bin/ksh
-→ back xterm -fg green -bg black -e /usr/local/bin/ksh
-→ listjobs
- 14370   pablojhd p=-1 2024/12/09 21:21:02 TERMINADO (001) xterm -fg green -bg black -e /usr/local/bin/ksh
- 14389   pablojhd p=-1 2024/12/09 21:21:44 TERMINADO (000) xterm -fg green -bg black -e /usr/local/bin/ksh
- 14391   pablojhd p=-1 2024/12/09 21:21:50 TERMINADO (000) xterm -fg green -bg black -e /usr/local/bin/ksh
-→ exit
-Saliendo de la shell...
-==14368==
-==14368== HEAP SUMMARY:
-==14368==     in use at exit: 0 bytes in 0 blocks
-==14368==   total heap usage: 115 allocs, 115 frees, 60,004 bytes allocated
-==14368==
-==14368== All heap blocks were freed -- no leaks are possible
-==14368==
-==14368== For lists of detected and suppressed errors, rerun with: -s
-==14368== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)
-
- */
-
 
 
