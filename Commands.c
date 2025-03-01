@@ -2387,55 +2387,6 @@ void executeExternalCommand(char *pieces[], char *env[], DirectoryList *director
     command_fg(pieces, env, directoryList);
 }
 
-/*QUE COJONES
- * pablojhd@asus:~/Escritorio/SO/P01$ valgrind --leak-check=full ./p3
-==14368== Memcheck, a memory error detector
-==14368== Copyright (C) 2002-2022, and GNU GPL'd, by Julian Seward et al.
-==14368== Using Valgrind-3.22.0 and LibVEX; rerun with -h for copyright info
-==14368== Command: ./p3
-==14368==
-Iniciando shell..
-→ back xterm -fg green -bg black -e /usr/local/bin/ksh
-Error ejecutando programa: No such file or directory
-==14370==
-==14370== HEAP SUMMARY:
-==14370==     in use at exit: 21,788 bytes in 53 blocks
-==14370==   total heap usage: 57 allocs, 4 frees, 25,332 bytes allocated
-==14370==
-==14370== LEAK SUMMARY:
-==14370==    definitely lost: 0 bytes in 0 blocks
-==14370==    indirectly lost: 0 bytes in 0 blocks
-==14370==      possibly lost: 0 bytes in 0 blocks
-==14370==    still reachable: 21,788 bytes in 53 blocks
-==14370==         suppressed: 0 bytes in 0 blocks
-==14370== Reachable blocks (those to which a pointer was found) are not shown.
-==14370== To see them, rerun with: --leak-check=full --show-leak-kinds=all
-==14370==
-==14370== For lists of detected and suppressed errors, rerun with: -s
-==14370== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)
-→ listjobs
- 14370   pablojhd p=-1 2024/12/09 21:21:02 TERMINADO (001) xterm -fg green -bg black -e /usr/local/bin/ksh
-→ search -path
-Importados 10 directorios en la ruta de busqueda
-→ back xterm -fg green -bg black -e /usr/local/bin/ksh
-→ back xterm -fg green -bg black -e /usr/local/bin/ksh
-→ listjobs
- 14370   pablojhd p=-1 2024/12/09 21:21:02 TERMINADO (001) xterm -fg green -bg black -e /usr/local/bin/ksh
- 14389   pablojhd p=-1 2024/12/09 21:21:44 TERMINADO (000) xterm -fg green -bg black -e /usr/local/bin/ksh
- 14391   pablojhd p=-1 2024/12/09 21:21:50 TERMINADO (000) xterm -fg green -bg black -e /usr/local/bin/ksh
-→ exit
-Saliendo de la shell...
-==14368==
-==14368== HEAP SUMMARY:
-==14368==     in use at exit: 0 bytes in 0 blocks
-==14368==   total heap usage: 115 allocs, 115 frees, 60,004 bytes allocated
-==14368==
-==14368== All heap blocks were freed -- no leaks are possible
-==14368==
-==14368== For lists of detected and suppressed errors, rerun with: -s
-==14368== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)
-
- */
 
 
 
