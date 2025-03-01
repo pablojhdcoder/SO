@@ -1,4 +1,4 @@
-# Práctica SO FIC
+# Práctica SO FIC 24/25
 
 Esta práctica consiste en desarrollar una shell para el sistema operativo Linux a lo largo del cuatrimestre. 
 Durante el proceso, se llevaron a cabo varias defensas organizadas por el profesor de prácticas, 
